@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Luca Number Quest</title>
+    <meta
+      name="description"
+      content="A simple touch-first number game for young kids with Bigger Number, Count and Tap, and Giant Numbers."
+    />
+    <meta name="theme-color" content="#ff8b36" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Number Quest" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="./assets/icon-192.png" />
+    <link rel="icon" href="./assets/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Big taps. Big numbers. Big fun.</p>
+          <h1 id="app-title">Luca Number Quest</h1>
+          <p id="hero-message" class="hero-message">
+            Pick a game and help the rocket blast off.
+          </p>
+        </div>
+        <div class="hero-rocket" aria-hidden="true">
+          <span class="rocket">🚀</span>
+          <span class="trail"></span>
+        </div>
+      </header>
+
+      <main>
+        <section id="screen-home" class="screen active" aria-label="Home">
+          <div class="stats-panel" aria-label="Game stats">
+            <article class="stat-card">
+              <span class="stat-label">Score</span>
+              <strong id="score-value">0</strong>
+            </article>
+            <article class="stat-card">
+              <span class="stat-label">Streak</span>
+              <strong id="streak-value">0</strong>
+            </article>
+            <article class="stat-card">
+              <span class="stat-label">Stars</span>
+              <strong id="stars-value">0</strong>
+            </article>
+          </div>
+
+          <section class="menu-panel">
+            <button class="menu-button coral" data-mode="bigger">
+              <span class="menu-emoji" aria-hidden="true">🔢</span>
+              <span class="menu-text">
+                <strong>Bigger Number</strong>
+                <small>Tap the bigger one</small>
+              </span>
+            </button>
+
+            <button class="menu-button sky" data-mode="count">
+              <span class="menu-emoji" aria-hidden="true">🧸</span>
+              <span class="menu-text">
+                <strong>Count &amp; Tap</strong>
+                <small>Tap the right amount</small>
+              </span>
+            </button>
+
+            <button class="menu-button sun" data-mode="giant">
+              <span class="menu-emoji" aria-hidden="true">🌟</span>
+              <span class="menu-text">
+                <strong>Giant Numbers</strong>
+                <small>Choose the huge number</small>
+              </span>
+            </button>
+          </section>
+
+          <section class="tip-panel" aria-label="Parent tip">
+            <p>Tip: add this page to the iPad home screen after you publish it on GitHub Pages.</p>
+          </section>
+        </section>
+
+        <section id="screen-game" class="screen" aria-label="Game">
+          <div class="game-topbar">
+            <button id="back-button" class="small-button" type="button">Home</button>
+            <div class="mode-chip" id="mode-chip">Bigger Number</div>
+            <div class="timer-chip" id="timer-text">8s</div>
+          </div>
+
+          <div class="timer-bar" aria-hidden="true">
+            <div id="timer-fill" class="timer-fill"></div>
+          </div>
+
+          <section class="prompt-panel">
+            <p id="prompt-kicker" class="prompt-kicker">Ready?</p>
+            <h2 id="prompt-title">Pick a game to start.</h2>
+            <p id="prompt-subtitle" class="prompt-subtitle">Fast rounds work best for little kids.</p>
+          </section>
+
+          <section id="choices" class="choices" aria-live="polite"></section>
+
+          <p id="feedback" class="feedback" aria-live="polite"></p>
+        </section>
+
+        <section id="screen-settings" class="screen" aria-label="Parent settings">
+          <div class="settings-card">
+            <div class="settings-head">
+              <h2>Parent Settings</h2>
+              <button id="close-settings" class="small-button" type="button">Done</button>
+            </div>
+
+            <label class="field">
+              <span>Child's name</span>
+              <input id="name-input" type="text" maxlength="20" placeholder="Luca" />
+            </label>
+
+            <label class="field">
+              <span>Round length</span>
+              <select id="round-seconds">
+                <option value="6">6 seconds</option>
+                <option value="8">8 seconds</option>
+                <option value="10">10 seconds</option>
+              </select>
+            </label>
+
+            <label class="toggle">
+              <input id="voice-toggle" type="checkbox" />
+              <span>Voice praise</span>
+            </label>
+
+            <div class="settings-actions">
+              <button id="save-settings" class="primary-button" type="button">Save Settings</button>
+              <button id="reset-progress" class="ghost-button" type="button">Reset Score</button>
+            </div>
+
+            <p class="settings-note">
+              Voice praise uses the iPad's built-in speech when available.
+            </p>
+          </div>
+        </section>
+      </main>
+
+      <button id="parents-button" class="parents-button" type="button" aria-label="Open parent settings">
+        Parents
+      </button>
+    </div>
+
+    <script src="./app.js" defer></script>
+  </body>
+</html>
