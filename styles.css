@@ -157,7 +157,6 @@ main {
 .primary-button,
 .ghost-button,
 .choice-button,
-.count-item,
 .small-button,
 .parents-button {
   transition:
@@ -170,7 +169,6 @@ main {
 .primary-button:active,
 .ghost-button:active,
 .choice-button:active,
-.count-item:active,
 .small-button:active,
 .parents-button:active {
   transform: scale(0.98);
@@ -329,6 +327,7 @@ main {
   font-size: clamp(2.6rem, 8vw, 5rem);
   font-weight: 900;
   line-height: 1;
+  overflow-wrap: anywhere;
 }
 
 .choice-button .choice-label {
@@ -338,24 +337,47 @@ main {
   color: #7f5631;
 }
 
-.count-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+.giant-choice .choice-value {
+  font-size: clamp(1.9rem, 5.5vw, 3.7rem);
+  line-height: 0.92;
+  letter-spacing: -0.05em;
 }
 
-.count-item {
+.count-select-layout {
+  grid-template-columns: 1fr;
+}
+
+.count-scene {
+  padding: 18px;
+  border-radius: 30px;
+  background: rgba(255, 255, 255, 0.76);
+  box-shadow: var(--shadow);
+}
+
+.count-scene-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(74px, 1fr));
+  gap: 12px;
+}
+
+.count-scene-item {
   display: grid;
   place-items: center;
-  min-height: 104px;
+  min-height: 86px;
   padding: 14px;
-  border-radius: 24px;
+  border-radius: 22px;
   background: rgba(255, 255, 255, 0.95);
-  box-shadow: var(--shadow);
-  font-size: clamp(2.1rem, 7vw, 3.4rem);
+  font-size: clamp(2.1rem, 6vw, 3.2rem);
 }
 
-.count-item.used {
-  opacity: 0.35;
-  transform: scale(0.94);
+.count-answer-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.count-choice .choice-value {
+  font-size: clamp(3rem, 8vw, 4.7rem);
 }
 
 .feedback {
@@ -475,7 +497,7 @@ main {
   }
 
   .two-choice-grid,
-  .count-grid {
+  .count-answer-grid {
     grid-template-columns: 1fr;
   }
 
@@ -483,7 +505,7 @@ main {
     min-height: 150px;
   }
 
-  .count-item {
-    min-height: 88px;
+  .count-scene-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }

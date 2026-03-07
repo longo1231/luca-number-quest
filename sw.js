@@ -1,4 +1,4 @@
-const CACHE_NAME = "luca-number-quest-v1";
+const CACHE_NAME = "luca-number-quest-v2";
 const APP_SHELL = [
   "./",
   "./index.html",

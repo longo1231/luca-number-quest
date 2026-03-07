@@ -5,9 +5,9 @@ A tiny static web app for young kids who love numbers. It is designed to run wel
 ## What's included
 
 - Bigger Number
-- Count & Tap
+- How Many?
 - Giant Numbers
-- Parent settings for child name, round length, and voice praise
+- Parent settings for child name, round length, voice praise, and silly sounds
 - PWA files for installability and basic offline support
 
 ## Files

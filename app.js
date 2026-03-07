@@ -4,6 +4,7 @@ const defaultSettings = {
   playerName: "Luca",
   roundSeconds: 8,
   voicePraise: true,
+  soundEffects: true,
 };
 
 const modes = {
@@ -12,8 +13,8 @@ const modes = {
     kicker: "Which one is bigger?",
   },
   count: {
-    label: "Count & Tap",
-    kicker: "Tap the right amount",
+    label: "How Many?",
+    kicker: "How many do you see?",
   },
   giant: {
     label: "Giant Numbers",
@@ -60,6 +61,7 @@ const state = {
   timerId: null,
   timerDeadline: 0,
   currentRound: null,
+  audioContext: null,
 };
 
 const elements = {
@@ -87,6 +89,7 @@ const elements = {
   nameInput: document.querySelector("#name-input"),
   roundSeconds: document.querySelector("#round-seconds"),
   voiceToggle: document.querySelector("#voice-toggle"),
+  soundToggle: document.querySelector("#sound-toggle"),
   saveSettings: document.querySelector("#save-settings"),
   resetProgress: document.querySelector("#reset-progress"),
 };
@@ -120,6 +123,7 @@ function startMode(mode) {
   elements.modeChip.textContent = modes[mode].label;
   clearFeedback();
   showScreen("game");
+  playSoundEffect("start");
   nextRound();
 }
 
@@ -190,22 +194,21 @@ function generateGiantRound() {
 function generateCountRound() {
   const item = countItems[randomInt(0, countItems.length - 1)];
   const target = randomInt(3, state.stars > 8 ? 10 : 8);
-  const total = target + randomInt(2, 5);
-  const items = Array.from({ length: total }, (_, index) => ({
-    id: index + 1,
-    used: false,
-    emoji: item.emoji,
-  }));
+  const choiceValues = buildCountChoices(target);
 
   return {
-    type: "count",
+    type: "count-select",
     kicker: modes.count.kicker,
-    title: `Tap ${target} ${item.word}`,
-    subtitle: `0 of ${target} tapped`,
+    title: `How many ${item.word}?`,
+    subtitle: "Count them, then tap the right number.",
     target,
-    tapped: 0,
     itemWord: item.word,
-    items,
+    items: Array.from({ length: target }, () => item.emoji),
+    choices: choiceValues.map((value) => ({
+      value,
+      label: item.word,
+      correct: value === target,
+    })),
   };
 }
 
@@ -220,7 +223,7 @@ function renderRound(round) {
 
     round.choices.forEach((choice) => {
       const button = document.createElement("button");
-      button.className = "choice-button";
+      button.className = `choice-button${state.mode === "giant" ? " giant-choice" : ""}`;
       button.type = "button";
       button.innerHTML = `
         <span class="choice-value">${formatNumber(choice.value)}</span>
@@ -238,42 +241,40 @@ function renderRound(round) {
     return;
   }
 
-  elements.choices.className = "choices count-grid";
+  elements.choices.className = "choices count-select-layout";
 
-  round.items.forEach((item) => {
+  const scene = document.createElement("div");
+  scene.className = "count-scene";
+  scene.innerHTML = `
+    <div class="count-scene-grid" aria-hidden="true">
+      ${round.items.map((emoji) => `<span class="count-scene-item">${emoji}</span>`).join("")}
+    </div>
+  `;
+  elements.choices.appendChild(scene);
+
+  const answerGrid = document.createElement("div");
+  answerGrid.className = "count-answer-grid";
+
+  round.choices.forEach((choice) => {
     const button = document.createElement("button");
-    button.className = "count-item";
+    button.className = "choice-button count-choice";
     button.type = "button";
-    button.textContent = item.emoji;
-    button.addEventListener("click", () => handleCountTap(button, item.id));
-    elements.choices.appendChild(button);
+    button.innerHTML = `
+      <span class="choice-value">${formatNumber(choice.value)}</span>
+      <span class="choice-label">${choice.label}</span>
+    `;
+    button.addEventListener("click", () => {
+      if (!state.roundActive) {
+        return;
+      }
+      choice.correct
+        ? handleCorrect(`Yes! There are ${round.target} ${round.itemWord}.`)
+        : handleIncorrect(`Not quite. There are ${round.target} ${round.itemWord}.`);
+    });
+    answerGrid.appendChild(button);
   });
-}
 
-function handleCountTap(button, itemId) {
-  if (!state.roundActive || !state.currentRound || state.currentRound.type !== "count") {
-    return;
-  }
-
-  const tappedItem = state.currentRound.items.find((item) => item.id === itemId);
-  if (!tappedItem || tappedItem.used) {
-    return;
-  }
-
-  tappedItem.used = true;
-  state.currentRound.tapped += 1;
-  button.classList.add("used");
-
-  elements.promptSubtitle.textContent = `${state.currentRound.tapped} of ${state.currentRound.target} tapped`;
-
-  if (state.currentRound.tapped === state.currentRound.target) {
-    handleCorrect(`You found ${state.currentRound.target} ${state.currentRound.itemWord}!`);
-    return;
-  }
-
-  if (state.currentRound.tapped > state.currentRound.target) {
-    handleIncorrect(`That was too many. You needed ${state.currentRound.target}.`);
-  }
+  elements.choices.appendChild(answerGrid);
 }
 
 function handleCorrect(customMessage) {
@@ -282,6 +283,7 @@ function handleCorrect(customMessage) {
   state.streak += 1;
   state.stars += 1;
   updateStats();
+  playSoundEffect("success");
   showFeedback("success", customMessage || praiseLines[randomInt(0, praiseLines.length - 1)]);
   speakPraise();
   window.setTimeout(nextRound, 950);
@@ -291,6 +293,7 @@ function handleIncorrect(message) {
   endRound();
   state.streak = 0;
   updateStats();
+  playSoundEffect("fail");
   showFeedback("fail", message || "Try again!");
   window.setTimeout(nextRound, 1200);
 }
@@ -366,6 +369,7 @@ function saveSettings() {
     playerName: nextName,
     roundSeconds: nextRoundSeconds,
     voicePraise: elements.voiceToggle.checked,
+    soundEffects: elements.soundToggle.checked,
   };
 
   persistSettings();
@@ -377,6 +381,7 @@ function populateSettingsForm() {
   elements.nameInput.value = state.settings.playerName;
   elements.roundSeconds.value = String(state.settings.roundSeconds);
   elements.voiceToggle.checked = Boolean(state.settings.voicePraise);
+  elements.soundToggle.checked = Boolean(state.settings.soundEffects);
 }
 
 function refreshHeader() {
@@ -449,6 +454,34 @@ function randomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
+function shuffleArray(values) {
+  const next = [...values];
+
+  for (let index = next.length - 1; index > 0; index -= 1) {
+    const swapIndex = randomInt(0, index);
+    [next[index], next[swapIndex]] = [next[swapIndex], next[index]];
+  }
+
+  return next;
+}
+
+function buildCountChoices(target) {
+  const maxChoice = Math.max(10, target + 3);
+  const values = new Set([target]);
+
+  while (values.size < 4) {
+    const offset = randomInt(1, 3);
+    const direction = Math.random() > 0.5 ? 1 : -1;
+    const candidate = target + offset * direction;
+
+    if (candidate >= 1 && candidate <= maxChoice) {
+      values.add(candidate);
+    }
+  }
+
+  return shuffleArray([...values]);
+}
+
 function loadSettings() {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
@@ -482,6 +515,84 @@ function speakPraise() {
   utterance.pitch = 1.25;
   window.speechSynthesis.cancel();
   window.speechSynthesis.speak(utterance);
+}
+
+function playSoundEffect(effectName) {
+  if (!state.settings.soundEffects) {
+    return;
+  }
+
+  const audioContext = getAudioContext();
+  if (!audioContext) {
+    return;
+  }
+
+  const patterns = {
+    start: [
+      { delay: 0, frequency: 320, endFrequency: 430, duration: 0.08, type: "triangle", volume: 0.035 },
+      { delay: 0.08, frequency: 480, endFrequency: 620, duration: 0.07, type: "square", volume: 0.025 },
+    ],
+    success: [
+      { delay: 0, frequency: 420, endFrequency: 620, duration: 0.11, type: "triangle", volume: 0.045 },
+      { delay: 0.12, frequency: 620, endFrequency: 920, duration: 0.12, type: "square", volume: 0.03 },
+      { delay: 0.24, frequency: 860, endFrequency: 680, duration: 0.14, type: "triangle", volume: 0.03 },
+    ],
+    fail: [
+      { delay: 0, frequency: 340, endFrequency: 220, duration: 0.14, type: "sawtooth", volume: 0.03 },
+      { delay: 0.13, frequency: 220, endFrequency: 150, duration: 0.16, type: "triangle", volume: 0.026 },
+    ],
+  };
+
+  const pattern = patterns[effectName];
+  if (!pattern) {
+    return;
+  }
+
+  const startAt = audioContext.currentTime + 0.01;
+  pattern.forEach((note) => {
+    scheduleTone(audioContext, {
+      ...note,
+      startAt: startAt + note.delay,
+    });
+  });
+}
+
+function getAudioContext() {
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+
+  if (!AudioContextClass) {
+    return null;
+  }
+
+  if (!state.audioContext) {
+    state.audioContext = new AudioContextClass();
+  }
+
+  if (state.audioContext.state === "suspended") {
+    state.audioContext.resume().catch(() => {
+      // Ignore audio resume failures when autoplay restrictions apply.
+    });
+  }
+
+  return state.audioContext;
+}
+
+function scheduleTone(audioContext, note) {
+  const oscillator = audioContext.createOscillator();
+  const gain = audioContext.createGain();
+
+  oscillator.type = note.type;
+  oscillator.frequency.setValueAtTime(note.frequency, note.startAt);
+  oscillator.frequency.exponentialRampToValueAtTime(note.endFrequency, note.startAt + note.duration);
+
+  gain.gain.setValueAtTime(0.0001, note.startAt);
+  gain.gain.exponentialRampToValueAtTime(note.volume, note.startAt + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0001, note.startAt + note.duration);
+
+  oscillator.connect(gain);
+  gain.connect(audioContext.destination);
+  oscillator.start(note.startAt);
+  oscillator.stop(note.startAt + note.duration + 0.03);
 }
 
 function registerServiceWorker() {
