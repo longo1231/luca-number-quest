@@ -343,6 +343,15 @@ main {
   letter-spacing: -0.05em;
 }
 
+.giant-choice[data-digits="6"] .choice-value,
+.giant-choice[data-digits="7"] .choice-value {
+  font-size: clamp(1.7rem, 4.9vw, 3.1rem);
+}
+
+.giant-choice[data-digits="8"] .choice-value {
+  font-size: clamp(1.45rem, 4.2vw, 2.6rem);
+}
+
 .count-select-layout {
   grid-template-columns: 1fr;
 }
@@ -373,7 +382,7 @@ main {
 .count-answer-grid {
   display: grid;
   gap: 16px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
 .count-choice .choice-value {

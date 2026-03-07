@@ -31,16 +31,54 @@ const countItems = [
   { emoji: "⚽", word: "balls" },
 ];
 
-const giantPrompts = [
-  [100, 1000],
-  [1000, 1000000],
-  [1000000, 1000000000],
-  [20, 200],
-  [500, 5000],
-  [2500, 250000],
-  [75000, 750000],
-  [100000, 1000000],
-  [1000000, 100000000],
+const giantTiers = [
+  {
+    subtitle: "Look for the one with more zeros.",
+    prompts: [
+      [10, 100],
+      [20, 200],
+      [50, 500],
+      [90, 900],
+      [100, 1000],
+    ],
+  },
+  {
+    subtitle: "The giant one has an extra zero.",
+    prompts: [
+      [100, 1000],
+      [250, 2500],
+      [500, 5000],
+      [900, 9000],
+      [1000, 10000],
+    ],
+  },
+  {
+    subtitle: "More places means a much bigger number.",
+    prompts: [
+      [1000, 10000],
+      [2000, 20000],
+      [5000, 50000],
+      [9000, 90000],
+      [10000, 100000],
+    ],
+  },
+  {
+    subtitle: "Huge numbers still follow the zero pattern.",
+    prompts: [
+      [10000, 100000],
+      [25000, 250000],
+      [50000, 500000],
+      [100000, 1000000],
+    ],
+  },
+  {
+    subtitle: "Mega round. Count the commas and zeros.",
+    prompts: [
+      [250000, 2500000],
+      [500000, 5000000],
+      [1000000, 10000000],
+    ],
+  },
 ];
 
 const praiseLines = [
@@ -50,6 +88,14 @@ const praiseLines = [
   "Big number win!",
   "Amazing counting!",
 ];
+
+function createModeStats() {
+  return {
+    bigger: { wins: 0, misses: 0, streak: 0 },
+    count: { wins: 0, misses: 0, streak: 0 },
+    giant: { wins: 0, misses: 0, streak: 0 },
+  };
+}
 
 const state = {
   settings: loadSettings(),
@@ -61,6 +107,7 @@ const state = {
   timerId: null,
   timerDeadline: 0,
   currentRound: null,
+  modeStats: createModeStats(),
   audioContext: null,
 };
 
@@ -175,14 +222,15 @@ function generateBiggerRound() {
 }
 
 function generateGiantRound() {
-  const pair = giantPrompts[randomInt(0, giantPrompts.length - 1)];
+  const tier = getGiantTier();
+  const pair = tier.prompts[randomInt(0, tier.prompts.length - 1)];
   const shuffled = Math.random() > 0.5 ? pair : [pair[1], pair[0]];
 
   return {
     type: "choice",
     kicker: modes.giant.kicker,
     title: "Which number is huge?",
-    subtitle: "Some numbers are really, really big.",
+    subtitle: tier.subtitle,
     choices: shuffled.map((value) => ({
       value,
       label: giantLabel(value),
@@ -193,14 +241,15 @@ function generateGiantRound() {
 
 function generateCountRound() {
   const item = countItems[randomInt(0, countItems.length - 1)];
-  const target = randomInt(3, state.stars > 8 ? 10 : 8);
-  const choiceValues = buildCountChoices(target);
+  const profile = getCountProfile();
+  const target = randomInt(profile.minTarget, profile.maxTarget);
+  const choiceValues = buildCountChoices(target, profile);
 
   return {
     type: "count-select",
     kicker: modes.count.kicker,
     title: `How many ${item.word}?`,
-    subtitle: "Count them, then tap the right number.",
+    subtitle: profile.subtitle,
     target,
     itemWord: item.word,
     items: Array.from({ length: target }, () => item.emoji),
@@ -225,6 +274,7 @@ function renderRound(round) {
       const button = document.createElement("button");
       button.className = `choice-button${state.mode === "giant" ? " giant-choice" : ""}`;
       button.type = "button";
+      button.dataset.digits = String(choice.value).length;
       button.innerHTML = `
         <span class="choice-value">${formatNumber(choice.value)}</span>
         <span class="choice-label">${choice.label}</span>
@@ -233,6 +283,7 @@ function renderRound(round) {
         if (!state.roundActive) {
           return;
         }
+        playSoundEffect("tap");
         choice.correct ? handleCorrect() : handleIncorrect(`The bigger number was ${formatNumber(getCorrectChoice(round).value)}.`);
       });
       elements.choices.appendChild(button);
@@ -267,6 +318,7 @@ function renderRound(round) {
       if (!state.roundActive) {
         return;
       }
+      playSoundEffect("tap");
       choice.correct
         ? handleCorrect(`Yes! There are ${round.target} ${round.itemWord}.`)
         : handleIncorrect(`Not quite. There are ${round.target} ${round.itemWord}.`);
@@ -278,6 +330,7 @@ function renderRound(round) {
 }
 
 function handleCorrect(customMessage) {
+  recordModeResult(true);
   endRound();
   state.score += 1;
   state.streak += 1;
@@ -290,6 +343,7 @@ function handleCorrect(customMessage) {
 }
 
 function handleIncorrect(message) {
+  recordModeResult(false);
   endRound();
   state.streak = 0;
   updateStats();
@@ -411,6 +465,7 @@ function resetProgress() {
   state.score = 0;
   state.streak = 0;
   state.stars = 0;
+  state.modeStats = createModeStats();
   updateStats();
   clearFeedback();
   closeSettings();
@@ -465,21 +520,104 @@ function shuffleArray(values) {
   return next;
 }
 
-function buildCountChoices(target) {
-  const maxChoice = Math.max(10, target + 3);
-  const values = new Set([target]);
+function getGiantTier() {
+  const wins = state.modeStats.giant.wins;
 
-  while (values.size < 4) {
-    const offset = randomInt(1, 3);
-    const direction = Math.random() > 0.5 ? 1 : -1;
-    const candidate = target + offset * direction;
+  if (wins < 2) {
+    return giantTiers[0];
+  }
+  if (wins < 5) {
+    return giantTiers[1];
+  }
+  if (wins < 8) {
+    return giantTiers[2];
+  }
+  if (wins < 12) {
+    return giantTiers[3];
+  }
+
+  return giantTiers[4];
+}
+
+function getCountProfile() {
+  const stats = state.modeStats.count;
+  const attempts = stats.wins + stats.misses;
+  const accuracy = attempts ? stats.wins / attempts : 1;
+
+  if (attempts < 3 || accuracy < 0.55) {
+    return {
+      minTarget: 3,
+      maxTarget: 6,
+      answerCount: 3,
+      subtitle: "Count each one, then tap the number.",
+      preferredOffsets: [3, -3, 2, -2, 4, -4, 1, -1],
+    };
+  }
+
+  if (stats.streak >= 4 || accuracy > 0.82) {
+    return {
+      minTarget: 5,
+      maxTarget: 10,
+      answerCount: 4,
+      subtitle: "Look closely. The answers are sneaky now.",
+      preferredOffsets: [1, -1, 2, -2, 3, -3],
+    };
+  }
+
+  return {
+    minTarget: 4,
+    maxTarget: 8,
+    answerCount: 4,
+    subtitle: "Count them, then choose the answer.",
+    preferredOffsets: [2, -2, 1, -1, 3, -3],
+  };
+}
+
+function buildCountChoices(target, profile) {
+  const maxChoice = Math.max(12, profile.maxTarget + 3);
+  const values = new Set([target]);
+  const offsetPool = shuffleArray(profile.preferredOffsets);
+
+  offsetPool.forEach((offset) => {
+    if (values.size >= profile.answerCount) {
+      return;
+    }
+
+    const candidate = target + offset;
 
     if (candidate >= 1 && candidate <= maxChoice) {
+      values.add(candidate);
+    }
+  });
+
+  while (values.size < profile.answerCount) {
+    const candidate = randomInt(1, maxChoice);
+    if (candidate !== target) {
       values.add(candidate);
     }
   }
 
   return shuffleArray([...values]);
+}
+
+function recordModeResult(didWin) {
+  if (!state.mode) {
+    return;
+  }
+
+  const stats = state.modeStats[state.mode];
+  if (!stats) {
+    return;
+  }
+
+  if (didWin) {
+    stats.wins += 1;
+    stats.streak += 1;
+    return;
+  }
+
+  stats.misses += 1;
+  stats.streak = 0;
 }
 
 function loadSettings() {
@@ -528,18 +666,26 @@ function playSoundEffect(effectName) {
   }
 
   const patterns = {
+    tap: [
+      { delay: 0, frequency: 520, endFrequency: 430, duration: 0.035, type: "square", volume: 0.012 },
+      { delay: 0.03, frequency: 620, endFrequency: 760, duration: 0.04, type: "triangle", volume: 0.012 },
+    ],
     start: [
-      { delay: 0, frequency: 320, endFrequency: 430, duration: 0.08, type: "triangle", volume: 0.035 },
-      { delay: 0.08, frequency: 480, endFrequency: 620, duration: 0.07, type: "square", volume: 0.025 },
+      { delay: 0, frequency: 210, endFrequency: 520, duration: 0.09, type: "triangle", volume: 0.04 },
+      { delay: 0.05, frequency: 520, endFrequency: 260, duration: 0.07, type: "sine", volume: 0.02 },
+      { delay: 0.11, frequency: 360, endFrequency: 780, duration: 0.08, type: "square", volume: 0.022 },
     ],
     success: [
-      { delay: 0, frequency: 420, endFrequency: 620, duration: 0.11, type: "triangle", volume: 0.045 },
-      { delay: 0.12, frequency: 620, endFrequency: 920, duration: 0.12, type: "square", volume: 0.03 },
-      { delay: 0.24, frequency: 860, endFrequency: 680, duration: 0.14, type: "triangle", volume: 0.03 },
+      { delay: 0, frequency: 240, endFrequency: 420, duration: 0.07, type: "sine", volume: 0.022 },
+      { delay: 0.06, frequency: 420, endFrequency: 660, duration: 0.08, type: "triangle", volume: 0.04 },
+      { delay: 0.15, frequency: 660, endFrequency: 980, duration: 0.08, type: "square", volume: 0.03 },
+      { delay: 0.24, frequency: 980, endFrequency: 720, duration: 0.11, type: "triangle", volume: 0.028 },
+      { delay: 0.32, frequency: 540, endFrequency: 1240, duration: 0.1, type: "square", volume: 0.02 },
     ],
     fail: [
-      { delay: 0, frequency: 340, endFrequency: 220, duration: 0.14, type: "sawtooth", volume: 0.03 },
-      { delay: 0.13, frequency: 220, endFrequency: 150, duration: 0.16, type: "triangle", volume: 0.026 },
+      { delay: 0, frequency: 480, endFrequency: 240, duration: 0.1, type: "sawtooth", volume: 0.03 },
+      { delay: 0.09, frequency: 240, endFrequency: 120, duration: 0.15, type: "triangle", volume: 0.03 },
+      { delay: 0.22, frequency: 150, endFrequency: 90, duration: 0.16, type: "sine", volume: 0.024 },
     ],
   };
 
