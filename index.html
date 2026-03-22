@@ -6,7 +6,7 @@
     <title>Luca Number Quest</title>
     <meta
       name="description"
-      content="A simple touch-first number game for young kids with Bigger Number, How Many, and Giant Numbers."
+      content="A simple touch-first kindergarten number game with counting, comparing, number pairs, and teen numbers."
     />
     <meta name="theme-color" content="#ff8b36" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -21,10 +21,10 @@
     <div class="app-shell">
       <header class="hero">
         <div class="hero-copy">
-          <p class="eyebrow">Big taps. Big numbers. Big fun.</p>
+          <p class="eyebrow">Big taps. Kindergarten number practice.</p>
           <h1 id="app-title">Luca Number Quest</h1>
           <p id="hero-message" class="hero-message">
-            Pick a game and help the rocket blast off.
+            Pick a skill and help the rocket blast off.
           </p>
         </div>
         <div class="hero-rocket" aria-hidden="true">
@@ -51,51 +51,59 @@
           </div>
 
           <section class="menu-panel">
-            <button class="menu-button coral" data-mode="bigger">
-              <span class="menu-emoji" aria-hidden="true">🔢</span>
-              <span class="menu-text">
-                <strong>Bigger Number</strong>
-                <small>Tap the bigger one</small>
-              </span>
-            </button>
-
-            <button class="menu-button sky" data-mode="count">
+            <button class="menu-button coral" data-mode="count">
               <span class="menu-emoji" aria-hidden="true">🧮</span>
               <span class="menu-text">
-                <strong>How Many?</strong>
-                <small>Count and choose the number</small>
+                <strong>Count It</strong>
+                <small>Count objects and count on</small>
               </span>
             </button>
 
-            <button class="menu-button sun" data-mode="giant">
-              <span class="menu-emoji" aria-hidden="true">🌟</span>
+            <button class="menu-button sky" data-mode="compare">
+              <span class="menu-emoji" aria-hidden="true">🔢</span>
               <span class="menu-text">
-                <strong>Giant Numbers</strong>
-                <small>Choose the huge number</small>
+                <strong>Compare Numbers</strong>
+                <small>Which is greater or the same?</small>
+              </span>
+            </button>
+
+            <button class="menu-button sun" data-mode="pairs">
+              <span class="menu-emoji" aria-hidden="true">➕</span>
+              <span class="menu-text">
+                <strong>Number Pairs</strong>
+                <small>Make 10 and solve tiny stories</small>
+              </span>
+            </button>
+
+            <button class="menu-button mint" data-mode="teen">
+              <span class="menu-emoji" aria-hidden="true">🔟</span>
+              <span class="menu-text">
+                <strong>Teen Numbers</strong>
+                <small>Build 11 to 19 with 10 and ones</small>
               </span>
             </button>
           </section>
 
           <section class="tip-panel" aria-label="Parent tip">
-            <p>Tip: add this page to the iPad home screen after you publish it on GitHub Pages.</p>
+            <p>This build is tuned to kindergarten number goals: counting, comparing, number pairs, and teen numbers.</p>
           </section>
         </section>
 
         <section id="screen-game" class="screen" aria-label="Game">
           <div class="game-topbar">
             <button id="back-button" class="small-button" type="button">Home</button>
-            <div class="mode-chip" id="mode-chip">Bigger Number</div>
-            <div class="timer-chip" id="timer-text">8s</div>
+            <div class="mode-chip" id="mode-chip">Count It</div>
+            <div class="timer-chip off" id="timer-text">No timer</div>
           </div>
 
-          <div class="timer-bar" aria-hidden="true">
+          <div id="timer-bar" class="timer-bar hidden" aria-hidden="true">
             <div id="timer-fill" class="timer-fill"></div>
           </div>
 
           <section class="prompt-panel">
             <p id="prompt-kicker" class="prompt-kicker">Ready?</p>
-            <h2 id="prompt-title">Pick a game to start.</h2>
-            <p id="prompt-subtitle" class="prompt-subtitle">Fast rounds work best for little kids.</p>
+            <h2 id="prompt-title">Pick a skill to start.</h2>
+            <p id="prompt-subtitle" class="prompt-subtitle">Short rounds and lots of repetition help little learners.</p>
           </section>
 
           <section id="choices" class="choices" aria-live="polite"></section>
@@ -116,12 +124,18 @@
             </label>
 
             <label class="field">
-              <span>Round length</span>
+              <span>Timer length</span>
               <select id="round-seconds">
-                <option value="6">6 seconds</option>
-                <option value="8">8 seconds</option>
-                <option value="10">10 seconds</option>
+                <option value="15">15 seconds</option>
+                <option value="20">20 seconds</option>
+                <option value="30">30 seconds</option>
+                <option value="45">45 seconds</option>
               </select>
+            </label>
+
+            <label class="toggle">
+              <input id="timer-toggle" type="checkbox" />
+              <span>Use timed rounds</span>
             </label>
 
             <label class="toggle">
@@ -136,11 +150,11 @@
 
             <div class="settings-actions">
               <button id="save-settings" class="primary-button" type="button">Save Settings</button>
-              <button id="reset-progress" class="ghost-button" type="button">Reset Score</button>
+              <button id="reset-progress" class="ghost-button" type="button">Reset Progress</button>
             </div>
 
             <p class="settings-note">
-              Voice praise uses the iPad's built-in speech when available.
+              Progress now saves automatically on this device. Voice praise uses the iPad's built-in speech when available.
             </p>
           </div>
         </section>

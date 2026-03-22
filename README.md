@@ -2,13 +2,21 @@
 
 A tiny static web app for young kids who love numbers. It is designed to run well on GitHub Pages and be saved to an iPad home screen like an app.
 
+This repo already maps to the GitHub Pages project `luca-number-quest`.
+
+The current version is tuned to Connecticut kindergarten number goals.
+
 ## What's included
 
-- Bigger Number
-- How Many?
-- Giant Numbers
+- Count It
+- Compare Numbers
+- Number Pairs
+- Teen Numbers
 - Parent settings for child name, round length, voice praise, and silly sounds
+- Optional timed rounds, with the timer off by default for calmer practice
+- Saved progress on the device so score and skill progress survive reloads
 - PWA files for installability and basic offline support
+- A standards-alignment guide in `CONNECTICUT_KINDERGARTEN_NUMBER_GUIDE.md`
 
 ## Files
 

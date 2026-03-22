@@ -1,113 +1,64 @@
 const STORAGE_KEY = "luca-number-quest-settings-v1";
+const PROGRESS_KEY = "luca-number-quest-progress-v1";
 
 const defaultSettings = {
   playerName: "Luca",
-  roundSeconds: 8,
+  roundSeconds: 20,
+  timerEnabled: false,
   voicePraise: true,
   soundEffects: true,
 };
 
+const savedProgress = loadProgress();
+
 const modes = {
-  bigger: {
-    label: "Bigger Number",
-    kicker: "Which one is bigger?",
-  },
   count: {
-    label: "How Many?",
-    kicker: "How many do you see?",
+    label: "Count It",
+    kicker: "How many are there?",
   },
-  giant: {
-    label: "Giant Numbers",
-    kicker: "Find the huge number",
+  compare: {
+    label: "Compare Numbers",
+    kicker: "Which side is greater?",
+  },
+  pairs: {
+    label: "Number Pairs",
+    kicker: "Numbers can snap together.",
+  },
+  teen: {
+    label: "Teen Numbers",
+    kicker: "Ten and some more ones.",
   },
 };
 
 const countItems = [
-  { emoji: "🧸", word: "bears" },
-  { emoji: "🚀", word: "rockets" },
-  { emoji: "⭐", word: "stars" },
-  { emoji: "🦕", word: "dinosaurs" },
-  { emoji: "🍎", word: "apples" },
-  { emoji: "⚽", word: "balls" },
-];
-
-const giantTiers = [
-  {
-    subtitle: "Look for the one with more zeros.",
-    prompts: [
-      [10, 100],
-      [20, 200],
-      [50, 500],
-      [90, 900],
-      [100, 1000],
-    ],
-  },
-  {
-    subtitle: "The giant one has an extra zero.",
-    prompts: [
-      [100, 1000],
-      [250, 2500],
-      [500, 5000],
-      [900, 9000],
-      [1000, 10000],
-    ],
-  },
-  {
-    subtitle: "More places means a much bigger number.",
-    prompts: [
-      [1000, 10000],
-      [2000, 20000],
-      [5000, 50000],
-      [9000, 90000],
-      [10000, 100000],
-    ],
-  },
-  {
-    subtitle: "Huge numbers still follow the zero pattern.",
-    prompts: [
-      [10000, 100000],
-      [25000, 250000],
-      [50000, 500000],
-      [100000, 1000000],
-    ],
-  },
-  {
-    subtitle: "Mega round. Count the commas and zeros.",
-    prompts: [
-      [250000, 2500000],
-      [500000, 5000000],
-      [1000000, 10000000],
-    ],
-  },
+  { emoji: "🧸", singular: "bear", plural: "bears" },
+  { emoji: "🚀", singular: "rocket", plural: "rockets" },
+  { emoji: "⭐", singular: "star", plural: "stars" },
+  { emoji: "🦕", singular: "dinosaur", plural: "dinosaurs" },
+  { emoji: "🍎", singular: "apple", plural: "apples" },
+  { emoji: "⚽", singular: "ball", plural: "balls" },
 ];
 
 const praiseLines = [
   "Super job!",
   "You got it!",
-  "Rocket power!",
-  "Big number win!",
-  "Amazing counting!",
+  "Math rocket!",
+  "Kindergarten power!",
+  "Amazing thinking!",
 ];
-
-function createModeStats() {
-  return {
-    bigger: { wins: 0, misses: 0, streak: 0 },
-    count: { wins: 0, misses: 0, streak: 0 },
-    giant: { wins: 0, misses: 0, streak: 0 },
-  };
-}
 
 const state = {
   settings: loadSettings(),
   mode: null,
-  score: 0,
-  streak: 0,
-  stars: 0,
+  score: savedProgress.score,
+  streak: savedProgress.streak,
+  stars: savedProgress.stars,
   roundActive: false,
   timerId: null,
   timerDeadline: 0,
+  nextRoundTimeoutId: null,
   currentRound: null,
-  modeStats: createModeStats(),
+  modeStats: savedProgress.modeStats,
   audioContext: null,
 };
 
@@ -124,6 +75,7 @@ const elements = {
   },
   modeChip: document.querySelector("#mode-chip"),
   timerText: document.querySelector("#timer-text"),
+  timerBar: document.querySelector("#timer-bar"),
   timerFill: document.querySelector("#timer-fill"),
   promptKicker: document.querySelector("#prompt-kicker"),
   promptTitle: document.querySelector("#prompt-title"),
@@ -135,6 +87,7 @@ const elements = {
   closeSettings: document.querySelector("#close-settings"),
   nameInput: document.querySelector("#name-input"),
   roundSeconds: document.querySelector("#round-seconds"),
+  timerToggle: document.querySelector("#timer-toggle"),
   voiceToggle: document.querySelector("#voice-toggle"),
   soundToggle: document.querySelector("#sound-toggle"),
   saveSettings: document.querySelector("#save-settings"),
@@ -146,6 +99,8 @@ init();
 function init() {
   bindEvents();
   populateSettingsForm();
+  syncTimerSettingsState();
+  updateTimerVisual();
   refreshHeader();
   updateStats();
   showScreen("home");
@@ -160,11 +115,27 @@ function bindEvents() {
   elements.parentsButton.addEventListener("click", openSettings);
   elements.closeSettings.addEventListener("click", closeSettings);
   elements.backButton.addEventListener("click", goHome);
+  elements.timerToggle.addEventListener("change", syncTimerSettingsState);
   elements.saveSettings.addEventListener("click", saveSettings);
   elements.resetProgress.addEventListener("click", resetProgress);
 }
 
+function createModeStats() {
+  const stats = {};
+
+  Object.keys(modes).forEach((modeKey) => {
+    stats[modeKey] = { wins: 0, misses: 0, streak: 0 };
+  });
+
+  return stats;
+}
+
 function startMode(mode) {
+  if (!modes[mode]) {
+    return;
+  }
+
+  clearQueuedRound();
   state.mode = mode;
   state.roundActive = true;
   elements.modeChip.textContent = modes[mode].label;
@@ -179,85 +150,568 @@ function nextRound() {
     return;
   }
 
+  clearQueuedRound();
   clearTimer();
   clearFeedback();
 
   const round = generateRound(state.mode);
   state.currentRound = round;
   renderRound(round);
-  startTimer(state.settings.roundSeconds);
+  startTimer();
 }
 
 function generateRound(mode) {
-  if (mode === "bigger") {
-    return generateBiggerRound();
-  }
-
   if (mode === "count") {
     return generateCountRound();
   }
 
-  return generateGiantRound();
-}
-
-function generateBiggerRound() {
-  const max = state.stars < 5 ? 20 : state.stars < 12 ? 100 : 1000;
-  let first = randomInt(1, max);
-  let second = randomInt(1, max);
-
-  while (first === second) {
-    second = randomInt(1, max);
+  if (mode === "compare") {
+    return generateCompareRound();
   }
 
-  return {
-    type: "choice",
-    kicker: modes.bigger.kicker,
-    title: "Tap the bigger number",
-    subtitle: "Go fast and trust your eyes.",
-    choices: [
-      { value: first, label: describeNumber(first), correct: first > second },
-      { value: second, label: describeNumber(second), correct: second > first },
-    ],
-  };
-}
+  if (mode === "pairs") {
+    return generatePairsRound();
+  }
 
-function generateGiantRound() {
-  const tier = getGiantTier();
-  const pair = tier.prompts[randomInt(0, tier.prompts.length - 1)];
-  const shuffled = Math.random() > 0.5 ? pair : [pair[1], pair[0]];
-
-  return {
-    type: "choice",
-    kicker: modes.giant.kicker,
-    title: "Which number is huge?",
-    subtitle: tier.subtitle,
-    choices: shuffled.map((value) => ({
-      value,
-      label: giantLabel(value),
-      correct: value === Math.max(...pair),
-    })),
-  };
+  return generateTeenRound();
 }
 
 function generateCountRound() {
-  const item = countItems[randomInt(0, countItems.length - 1)];
   const profile = getCountProfile();
-  const target = randomInt(profile.minTarget, profile.maxTarget);
-  const choiceValues = buildCountChoices(target, profile);
+  const roll = Math.random();
+
+  if (profile.allowTens && roll < 0.18) {
+    return generateCountByTensRound();
+  }
+
+  if (profile.allowSequence && roll < 0.46) {
+    return generateCountOnRound(profile);
+  }
+
+  return generateCountObjectsRound(profile);
+}
+
+function generateCompareRound() {
+  const profile = getCompareProfile();
+  const roll = Math.random();
+
+  if (profile.allowEqual && roll < 0.2) {
+    return generateSameAmountRound(profile);
+  }
+
+  if (profile.allowObjectCompare && roll < 0.58) {
+    return generateCompareObjectsRound(profile);
+  }
+
+  return generateCompareNumeralsRound(profile);
+}
+
+function generatePairsRound() {
+  const profile = getPairsProfile();
+  const roll = Math.random();
+
+  if (profile.allowMakeTen && roll < 0.28) {
+    return generateMakeTenRound(profile);
+  }
+
+  if (profile.allowStories && roll < 0.62) {
+    return generateStoryRound(profile);
+  }
+
+  return generateBondRound(profile);
+}
+
+function generateTeenRound() {
+  const profile = getTeenProfile();
+  const roll = Math.random();
+
+  if (profile.allowOnesQuestion && roll < 0.3) {
+    return generateTeenOnesRound(profile);
+  }
+
+  if (roll < 0.62) {
+    return generateTeenCountRound(profile);
+  }
+
+  return generateTeenMatchRound(profile);
+}
+
+function getCountProfile() {
+  const stats = state.modeStats.count;
+  const attempts = stats.wins + stats.misses;
+  const accuracy = attempts ? stats.wins / attempts : 1;
+
+  if (stats.wins < 4 || accuracy < 0.6) {
+    return {
+      minTarget: 1,
+      maxTarget: 6,
+      answerCount: 3,
+      allowSequence: false,
+      allowTens: false,
+      sequenceMax: 10,
+    };
+  }
+
+  if (stats.streak >= 4 || accuracy > 0.82) {
+    return {
+      minTarget: 6,
+      maxTarget: 20,
+      answerCount: 4,
+      allowSequence: true,
+      allowTens: stats.wins >= 8,
+      sequenceMax: 20,
+    };
+  }
 
   return {
-    type: "count-select",
+    minTarget: 4,
+    maxTarget: 10,
+    answerCount: 4,
+    allowSequence: true,
+    allowTens: false,
+    sequenceMax: 20,
+  };
+}
+
+function getCompareProfile() {
+  const stats = state.modeStats.compare;
+  const attempts = stats.wins + stats.misses;
+  const accuracy = attempts ? stats.wins / attempts : 1;
+
+  if (stats.wins < 4 || accuracy < 0.6) {
+    return {
+      numeralMax: 5,
+      objectMax: 5,
+      allowObjectCompare: true,
+      allowEqual: false,
+    };
+  }
+
+  if (stats.streak >= 4 || accuracy > 0.82) {
+    return {
+      numeralMax: 20,
+      objectMax: 10,
+      allowObjectCompare: true,
+      allowEqual: true,
+    };
+  }
+
+  return {
+    numeralMax: 10,
+    objectMax: 8,
+    allowObjectCompare: true,
+    allowEqual: false,
+  };
+}
+
+function getPairsProfile() {
+  const stats = state.modeStats.pairs;
+  const attempts = stats.wins + stats.misses;
+  const accuracy = attempts ? stats.wins / attempts : 1;
+
+  if (stats.wins < 4 || accuracy < 0.58) {
+    return {
+      maxTarget: 5,
+      answerCount: 3,
+      allowMakeTen: false,
+      allowStories: true,
+      storyMax: 5,
+      allowSubtraction: false,
+    };
+  }
+
+  if (stats.streak >= 4 || accuracy > 0.82) {
+    return {
+      maxTarget: 10,
+      answerCount: 4,
+      allowMakeTen: true,
+      allowStories: true,
+      storyMax: 10,
+      allowSubtraction: true,
+    };
+  }
+
+  return {
+    maxTarget: 8,
+    answerCount: 4,
+    allowMakeTen: true,
+    allowStories: true,
+    storyMax: 8,
+    allowSubtraction: true,
+  };
+}
+
+function getTeenProfile() {
+  const stats = state.modeStats.teen;
+  const attempts = stats.wins + stats.misses;
+  const accuracy = attempts ? stats.wins / attempts : 1;
+
+  if (stats.wins < 4 || accuracy < 0.6) {
+    return {
+      minTeen: 11,
+      maxTeen: 14,
+      answerCount: 3,
+      allowOnesQuestion: false,
+    };
+  }
+
+  if (stats.streak >= 4 || accuracy > 0.82) {
+    return {
+      minTeen: 11,
+      maxTeen: 19,
+      answerCount: 4,
+      allowOnesQuestion: true,
+    };
+  }
+
+  return {
+    minTeen: 11,
+    maxTeen: 17,
+    answerCount: 4,
+    allowOnesQuestion: false,
+  };
+}
+
+function generateCountObjectsRound(profile) {
+  const item = pickRandom(countItems);
+  const target = randomInt(profile.minTarget, profile.maxTarget);
+  const layout = pickRandom(["line-layout", "array-layout", "scatter-layout"]);
+  const choices = buildNearbyChoices(target, profile.answerCount, 20, { min: 0 });
+
+  return {
+    type: "scene-choice",
     kicker: modes.count.kicker,
-    title: `How many ${item.word}?`,
-    subtitle: profile.subtitle,
-    target,
-    itemWord: item.word,
-    items: Array.from({ length: target }, () => item.emoji),
-    choices: choiceValues.map((value) => ({
-      value,
-      label: item.word,
-      correct: value === target,
-    })),
+    title: `How many ${item.plural}?`,
+    subtitle: getCountSubtitle(layout),
+    sceneClassName: "count-scene-card",
+    sceneHtml: buildCountSceneHtml(item.emoji, target, layout),
+    layoutClass: "answer-choice-grid",
+    choices: choices.map((value) =>
+      createChoice({
+        correct: value === target,
+        html: buildNumberChoiceHtml(value, pluralize(item, value)),
+      })
+    ),
+    successMessage: `Yes! There are ${target} ${pluralize(item, target)}.`,
+    failureMessage: `Count again. There are ${target} ${pluralize(item, target)}.`,
+  };
+}
+
+function generateCountOnRound(profile) {
+  const start = randomInt(1, profile.sequenceMax - 1);
+  const correct = start + 1;
+  const choices = buildNearbyChoices(correct, 3, profile.sequenceMax + 2, { min: 1 });
+
+  return {
+    type: "choice",
+    kicker: "Count on by one.",
+    title: `What number comes after ${formatNumber(start)}?`,
+    subtitle: "Try not to restart at 1.",
+    layoutClass: "answer-choice-grid",
+    choices: choices.map((value) =>
+      createChoice({
+        correct: value === correct,
+        html: buildNumberChoiceHtml(value, "next number"),
+      })
+    ),
+    successMessage: `Yes! ${formatNumber(correct)} comes after ${formatNumber(start)}.`,
+    failureMessage: `The next number after ${formatNumber(start)} is ${formatNumber(correct)}.`,
+  };
+}
+
+function generateCountByTensRound() {
+  const start = randomInt(1, 9) * 10;
+  const correct = start + 10;
+  const tensChoices = buildNearbyChoices(correct, 3, 100, {
+    min: 10,
+    offsets: [10, -10, 20, -20, 30, -30],
+  });
+
+  return {
+    type: "choice",
+    kicker: "Count by tens.",
+    title: `What comes after ${formatNumber(start)}?`,
+    subtitle: "Ten more keeps the pattern going.",
+    layoutClass: "answer-choice-grid",
+    choices: tensChoices.map((value) =>
+      createChoice({
+        correct: value === correct,
+        html: buildNumberChoiceHtml(value, "next ten"),
+      })
+    ),
+    successMessage: `Yes! ${formatNumber(correct)} comes after ${formatNumber(start)}.`,
+    failureMessage: `When you count by tens after ${formatNumber(start)}, the next number is ${formatNumber(correct)}.`,
+  };
+}
+
+function generateCompareNumeralsRound(profile) {
+  let first = randomInt(1, profile.numeralMax);
+  let second = randomInt(1, profile.numeralMax);
+
+  while (first === second) {
+    second = randomInt(1, profile.numeralMax);
+  }
+
+  const greater = Math.max(first, second);
+  const smaller = Math.min(first, second);
+
+  return {
+    type: "choice",
+    kicker: modes.compare.kicker,
+    title: "Which number is greater?",
+    subtitle: "The greater number means more.",
+    layoutClass: "two-choice-grid",
+    choices: shuffleArray([
+      createChoice({
+        correct: first > second,
+        html: buildNumberChoiceHtml(first, "number"),
+      }),
+      createChoice({
+        correct: second > first,
+        html: buildNumberChoiceHtml(second, "number"),
+      }),
+    ]),
+    successMessage: `Yes! ${formatNumber(greater)} is greater than ${formatNumber(smaller)}.`,
+    failureMessage: `${formatNumber(greater)} is greater than ${formatNumber(smaller)}.`,
+  };
+}
+
+function generateCompareObjectsRound(profile) {
+  const item = pickRandom(countItems);
+  let left = randomInt(1, profile.objectMax);
+  let right = randomInt(1, profile.objectMax);
+
+  while (left === right) {
+    right = randomInt(1, profile.objectMax);
+  }
+
+  const larger = Math.max(left, right);
+
+  return {
+    type: "choice",
+    kicker: "Which group has more?",
+    title: `Tap the group with more ${item.plural}.`,
+    subtitle: "You can match one object at a time in your head.",
+    layoutClass: "two-choice-grid",
+    choices: shuffleArray([
+      createChoice({
+        correct: left > right,
+        className: "emoji-choice",
+        html: buildEmojiChoiceHtml(item.emoji, left, item.plural),
+      }),
+      createChoice({
+        correct: right > left,
+        className: "emoji-choice",
+        html: buildEmojiChoiceHtml(item.emoji, right, item.plural),
+      }),
+    ]),
+    successMessage: `Yes! The group with ${larger} ${item.plural} has more.`,
+    failureMessage: `Count again. The bigger group has ${larger} ${item.plural}.`,
+  };
+}
+
+function generateSameAmountRound(profile) {
+  const item = pickRandom(countItems);
+  const left = randomInt(1, profile.objectMax);
+  const isSame = Math.random() > 0.5;
+  const right = isSame ? left : clamp(left + pickRandom([-2, -1, 1, 2]), 1, profile.objectMax);
+
+  return {
+    type: "scene-choice",
+    kicker: "Equal means the same amount.",
+    title: "Do both sides show the same number?",
+    subtitle: "Count each side and compare.",
+    sceneClassName: "compare-scene-card",
+    sceneHtml: buildEqualSceneHtml(item.emoji, left, right),
+    layoutClass: "binary-choice-grid",
+    choices: [
+      createChoice({
+        correct: isSame,
+        className: "compact-choice",
+        html: buildWordChoiceHtml("Same", "equal groups"),
+      }),
+      createChoice({
+        correct: !isSame,
+        className: "compact-choice",
+        html: buildWordChoiceHtml("Not Same", "different groups"),
+      }),
+    ],
+    successMessage: isSame
+      ? "Yes! Both sides show the same amount."
+      : "Yes! The sides do not match.",
+    failureMessage: isSame
+      ? "These groups are equal."
+      : "These groups are not equal.",
+  };
+}
+
+function generateBondRound(profile) {
+  const target = randomInt(3, profile.maxTarget);
+  const choices = buildBondChoices(target, profile.answerCount);
+  const correctPair = choices.find((choice) => choice.correct);
+
+  return {
+    type: "choice",
+    kicker: modes.pairs.kicker,
+    title: `Which pair makes ${formatNumber(target)}?`,
+    subtitle: "Different parts can make one whole number.",
+    layoutClass: "answer-choice-grid",
+    choices: choices.map((choice) =>
+      createChoice({
+        correct: choice.correct,
+        className: "equation-choice",
+        html: buildEquationChoiceHtml(choice.first, choice.second),
+      })
+    ),
+    successMessage: `Yes! ${correctPair.first} and ${correctPair.second} make ${formatNumber(target)}.`,
+    failureMessage: `${correctPair.first} and ${correctPair.second} make ${formatNumber(target)}.`,
+  };
+}
+
+function generateMakeTenRound(profile) {
+  const first = randomInt(1, 9);
+  const correct = 10 - first;
+  const choices = buildNearbyChoices(correct, profile.answerCount, 10, { min: 0 });
+
+  return {
+    type: "scene-choice",
+    kicker: "Friends of 10.",
+    title: `What makes 10 with ${formatNumber(first)}?`,
+    subtitle: "Fill the whole ten frame.",
+    sceneClassName: "ten-scene-card",
+    sceneHtml: buildMakeTenSceneHtml(first),
+    layoutClass: "answer-choice-grid",
+    choices: choices.map((value) =>
+      createChoice({
+        correct: value === correct,
+        html: buildNumberChoiceHtml(value, "more"),
+      })
+    ),
+    successMessage: `Yes! ${first} and ${correct} make 10.`,
+    failureMessage: `${first} needs ${correct} more to make 10.`,
+  };
+}
+
+function generateStoryRound(profile) {
+  const item = pickRandom(countItems);
+  const useSubtraction = profile.allowSubtraction && Math.random() > 0.5;
+
+  if (useSubtraction) {
+    const total = randomInt(3, profile.storyMax);
+    const takenAway = randomInt(1, total - 1);
+    const correct = total - takenAway;
+    const choices = buildNearbyChoices(correct, profile.answerCount, profile.storyMax, { min: 0 });
+
+    return {
+      type: "scene-choice",
+      kicker: "Take away to subtract.",
+      title: `${total} ${pluralize(item, total)}, ${takenAway} go away. How many are left?`,
+      subtitle: "Look at what stays.",
+      sceneClassName: "story-scene-card",
+      sceneHtml: buildStorySceneHtml(item.emoji, total, takenAway, "subtract"),
+      layoutClass: "answer-choice-grid",
+      choices: choices.map((value) =>
+        createChoice({
+          correct: value === correct,
+          html: buildNumberChoiceHtml(value, pluralize(item, value)),
+        })
+      ),
+      successMessage: `Yes! ${correct} ${pluralize(item, correct)} are left.`,
+      failureMessage: `After ${takenAway} go away, ${correct} ${pluralize(item, correct)} are left.`,
+    };
+  }
+
+  const first = randomInt(1, Math.max(2, profile.storyMax - 2));
+  const second = randomInt(1, profile.storyMax - first);
+  const correct = first + second;
+  const choices = buildNearbyChoices(correct, profile.answerCount, profile.storyMax, { min: 1 });
+
+  return {
+    type: "scene-choice",
+    kicker: "Put together to add.",
+    title: `${first} ${pluralize(item, first)} and ${second} more. How many now?`,
+    subtitle: "Count both groups together.",
+    sceneClassName: "story-scene-card",
+    sceneHtml: buildStorySceneHtml(item.emoji, first, second, "add"),
+    layoutClass: "answer-choice-grid",
+    choices: choices.map((value) =>
+      createChoice({
+        correct: value === correct,
+        html: buildNumberChoiceHtml(value, pluralize(item, value)),
+      })
+    ),
+    successMessage: `Yes! ${first} and ${second} make ${correct}.`,
+    failureMessage: `${first} and ${second} make ${correct}.`,
+  };
+}
+
+function generateTeenMatchRound(profile) {
+  const target = randomInt(profile.minTeen, profile.maxTeen);
+  const correctOnes = target - 10;
+  const onesChoices = buildNearbyChoices(correctOnes, profile.answerCount, 9, { min: 1 });
+
+  return {
+    type: "choice",
+    kicker: modes.teen.kicker,
+    title: `How is ${formatNumber(target)} built?`,
+    subtitle: "Teen numbers are 10 ones and some more ones.",
+    layoutClass: "answer-choice-grid",
+    choices: onesChoices.map((value) =>
+      createChoice({
+        correct: value === correctOnes,
+        className: "equation-choice",
+        html: buildEquationChoiceHtml(10, value),
+      })
+    ),
+    successMessage: `Yes! ${target} is 10 and ${correctOnes} more.`,
+    failureMessage: `${target} is 10 and ${correctOnes} more.`,
+  };
+}
+
+function generateTeenCountRound(profile) {
+  const target = randomInt(profile.minTeen, profile.maxTeen);
+  const choices = buildNearbyChoices(target, profile.answerCount, 19, { min: 11 });
+
+  return {
+    type: "scene-choice",
+    kicker: modes.teen.kicker,
+    title: "Which teen number do you see?",
+    subtitle: "Look for 1 full ten and extra ones.",
+    sceneClassName: "ten-scene-card",
+    sceneHtml: buildTeenSceneHtml(target),
+    layoutClass: "answer-choice-grid",
+    choices: choices.map((value) =>
+      createChoice({
+        correct: value === target,
+        html: buildNumberChoiceHtml(value, "teen number"),
+      })
+    ),
+    successMessage: `Yes! That picture shows ${target}.`,
+    failureMessage: `That picture shows ${target}: 10 and ${target - 10} more.`,
+  };
+}
+
+function generateTeenOnesRound(profile) {
+  const target = randomInt(profile.minTeen, profile.maxTeen);
+  const correct = target - 10;
+  const choices = buildNearbyChoices(correct, profile.answerCount, 9, { min: 1 });
+
+  return {
+    type: "scene-choice",
+    kicker: "Count the extra ones.",
+    title: `${target} is 10 and how many more ones?`,
+    subtitle: "The teen number has one full ten first.",
+    sceneClassName: "ten-scene-card",
+    sceneHtml: buildTeenSceneHtml(target),
+    layoutClass: "answer-choice-grid",
+    choices: choices.map((value) =>
+      createChoice({
+        correct: value === correct,
+        html: buildNumberChoiceHtml(value, "ones"),
+      })
+    ),
+    successMessage: `Yes! ${target} is 10 and ${correct} ones.`,
+    failureMessage: `${target} is 10 and ${correct} ones.`,
   };
 }
 
@@ -268,65 +722,56 @@ function renderRound(round) {
   elements.choices.innerHTML = "";
 
   if (round.type === "choice") {
-    elements.choices.className = "choices two-choice-grid";
+    elements.choices.className = `choices ${round.layoutClass || "answer-choice-grid"}`;
 
     round.choices.forEach((choice) => {
-      const button = document.createElement("button");
-      button.className = `choice-button${state.mode === "giant" ? " giant-choice" : ""}`;
-      button.type = "button";
-      button.dataset.digits = String(choice.value).length;
-      button.innerHTML = `
-        <span class="choice-value">${formatNumber(choice.value)}</span>
-        <span class="choice-label">${choice.label}</span>
-      `;
-      button.addEventListener("click", () => {
-        if (!state.roundActive) {
-          return;
-        }
-        playSoundEffect("tap");
-        choice.correct ? handleCorrect() : handleIncorrect(`The bigger number was ${formatNumber(getCorrectChoice(round).value)}.`);
-      });
-      elements.choices.appendChild(button);
+      elements.choices.appendChild(buildChoiceButton(choice, round));
     });
 
     return;
   }
 
-  elements.choices.className = "choices count-select-layout";
+  elements.choices.className = "choices scene-choice-layout";
 
   const scene = document.createElement("div");
-  scene.className = "count-scene";
-  scene.innerHTML = `
-    <div class="count-scene-grid" aria-hidden="true">
-      ${round.items.map((emoji) => `<span class="count-scene-item">${emoji}</span>`).join("")}
-    </div>
-  `;
+  scene.className = ["scene-card", round.sceneClassName].filter(Boolean).join(" ");
+  scene.innerHTML = round.sceneHtml;
   elements.choices.appendChild(scene);
 
   const answerGrid = document.createElement("div");
-  answerGrid.className = "count-answer-grid";
+  answerGrid.className = round.layoutClass || "answer-choice-grid";
 
   round.choices.forEach((choice) => {
-    const button = document.createElement("button");
-    button.className = "choice-button count-choice";
-    button.type = "button";
-    button.innerHTML = `
-      <span class="choice-value">${formatNumber(choice.value)}</span>
-      <span class="choice-label">${choice.label}</span>
-    `;
-    button.addEventListener("click", () => {
-      if (!state.roundActive) {
-        return;
-      }
-      playSoundEffect("tap");
-      choice.correct
-        ? handleCorrect(`Yes! There are ${round.target} ${round.itemWord}.`)
-        : handleIncorrect(`Not quite. There are ${round.target} ${round.itemWord}.`);
-    });
-    answerGrid.appendChild(button);
+    answerGrid.appendChild(buildChoiceButton(choice, round));
   });
 
   elements.choices.appendChild(answerGrid);
+}
+
+function buildChoiceButton(choice, round) {
+  const button = document.createElement("button");
+  button.className = ["choice-button", choice.className].filter(Boolean).join(" ");
+  button.type = "button";
+  button.innerHTML = choice.html;
+  button.addEventListener("click", () => {
+    if (!state.roundActive) {
+      return;
+    }
+
+    playSoundEffect("tap");
+    if (choice.correct) {
+      handleCorrect(round.successMessage);
+      return;
+    }
+
+    handleIncorrect(round.failureMessage);
+  });
+
+  return button;
+}
+
+function createChoice({ correct, html, className = "" }) {
+  return { correct, html, className };
 }
 
 function handleCorrect(customMessage) {
@@ -335,21 +780,23 @@ function handleCorrect(customMessage) {
   state.score += 1;
   state.streak += 1;
   state.stars += 1;
+  persistProgress();
   updateStats();
   playSoundEffect("success");
-  showFeedback("success", customMessage || praiseLines[randomInt(0, praiseLines.length - 1)]);
+  showFeedback("success", customMessage || pickRandom(praiseLines));
   speakPraise();
-  window.setTimeout(nextRound, 950);
+  queueNextRound(950);
 }
 
 function handleIncorrect(message) {
   recordModeResult(false);
   endRound();
   state.streak = 0;
+  persistProgress();
   updateStats();
   playSoundEffect("fail");
   showFeedback("fail", message || "Try again!");
-  window.setTimeout(nextRound, 1200);
+  queueNextRound(1200);
 }
 
 function endRound() {
@@ -357,8 +804,30 @@ function endRound() {
   clearTimer();
 }
 
-function startTimer(seconds) {
+function queueNextRound(delay) {
+  clearQueuedRound();
+  state.nextRoundTimeoutId = window.setTimeout(() => {
+    state.nextRoundTimeoutId = null;
+    nextRound();
+  }, delay);
+}
+
+function clearQueuedRound() {
+  if (state.nextRoundTimeoutId) {
+    window.clearTimeout(state.nextRoundTimeoutId);
+    state.nextRoundTimeoutId = null;
+  }
+}
+
+function startTimer() {
   state.roundActive = true;
+
+  if (!state.settings.timerEnabled) {
+    updateTimerVisual();
+    return;
+  }
+
+  const seconds = state.settings.roundSeconds;
   state.timerDeadline = Date.now() + seconds * 1000;
   updateTimerVisual(seconds);
 
@@ -373,14 +842,26 @@ function startTimer(seconds) {
   }, 100);
 }
 
-function updateTimerVisual(secondsLeft) {
+function updateTimerVisual(secondsLeft = state.settings.roundSeconds) {
+  if (!state.settings.timerEnabled) {
+    elements.timerText.textContent = "No timer";
+    elements.timerText.classList.add("off");
+    elements.timerBar.classList.add("hidden");
+    elements.timerFill.style.width = "100%";
+    elements.timerFill.style.background = "linear-gradient(90deg, #7ce0a3, #5dc6ff)";
+    return;
+  }
+
   const total = state.settings.roundSeconds;
   const ratio = Math.max(0, Math.min(1, secondsLeft / total));
   elements.timerText.textContent = `${Math.ceil(secondsLeft)}s`;
+  elements.timerText.classList.remove("off");
+  elements.timerBar.classList.remove("hidden");
   elements.timerFill.style.width = `${ratio * 100}%`;
-  elements.timerFill.style.background = ratio < 0.35
-    ? "linear-gradient(90deg, #ff8e66, #ff5b6e)"
-    : "linear-gradient(90deg, #7ce0a3, #5dc6ff)";
+  elements.timerFill.style.background =
+    ratio < 0.35
+      ? "linear-gradient(90deg, #ff8e66, #ff5b6e)"
+      : "linear-gradient(90deg, #7ce0a3, #5dc6ff)";
 }
 
 function clearTimer() {
@@ -397,36 +878,44 @@ function showScreen(name) {
 }
 
 function goHome() {
+  clearQueuedRound();
   endRound();
   state.mode = null;
+  state.currentRound = null;
   clearFeedback();
   refreshHeader();
   showScreen("home");
 }
 
 function openSettings() {
+  clearQueuedRound();
   endRound();
   populateSettingsForm();
   showScreen("settings");
 }
 
 function closeSettings() {
+  state.mode = null;
+  state.currentRound = null;
   refreshHeader();
   showScreen("home");
 }
 
 function saveSettings() {
   const nextName = elements.nameInput.value.trim() || defaultSettings.playerName;
-  const nextRoundSeconds = Number(elements.roundSeconds.value) || defaultSettings.roundSeconds;
+  const nextRoundSeconds =
+    Number(elements.roundSeconds.value) || defaultSettings.roundSeconds;
 
   state.settings = {
     playerName: nextName,
     roundSeconds: nextRoundSeconds,
+    timerEnabled: elements.timerToggle.checked,
     voicePraise: elements.voiceToggle.checked,
     soundEffects: elements.soundToggle.checked,
   };
 
   persistSettings();
+  updateTimerVisual();
   refreshHeader();
   closeSettings();
 }
@@ -434,15 +923,20 @@ function saveSettings() {
 function populateSettingsForm() {
   elements.nameInput.value = state.settings.playerName;
   elements.roundSeconds.value = String(state.settings.roundSeconds);
+  elements.timerToggle.checked = Boolean(state.settings.timerEnabled);
   elements.voiceToggle.checked = Boolean(state.settings.voicePraise);
   elements.soundToggle.checked = Boolean(state.settings.soundEffects);
+}
+
+function syncTimerSettingsState() {
+  elements.roundSeconds.disabled = !elements.timerToggle.checked;
 }
 
 function refreshHeader() {
   const name = state.settings.playerName || defaultSettings.playerName;
   document.title = `${name} Number Quest`;
   elements.appTitle.textContent = `${name} Number Quest`;
-  elements.heroMessage.textContent = `${name} can pick a game and help the rocket blast off.`;
+  elements.heroMessage.textContent = `${name} can practice kindergarten number skills and help the rocket blast off.`;
 }
 
 function updateStats() {
@@ -462,142 +956,18 @@ function clearFeedback() {
 }
 
 function resetProgress() {
+  clearQueuedRound();
+  endRound();
   state.score = 0;
   state.streak = 0;
   state.stars = 0;
+  state.mode = null;
+  state.currentRound = null;
   state.modeStats = createModeStats();
+  persistProgress();
   updateStats();
   clearFeedback();
   closeSettings();
-}
-
-function getCorrectChoice(round) {
-  return round.choices.find((choice) => choice.correct);
-}
-
-function formatNumber(value) {
-  return new Intl.NumberFormat("en-US").format(value);
-}
-
-function giantLabel(value) {
-  if (value >= 1000000000) {
-    return "billion";
-  }
-  if (value >= 1000000) {
-    return "million";
-  }
-  if (value >= 1000) {
-    return "thousand";
-  }
-  if (value >= 100) {
-    return "hundreds";
-  }
-  return "number";
-}
-
-function describeNumber(value) {
-  if (value < 10) {
-    return "tiny";
-  }
-  if (value < 100) {
-    return "big";
-  }
-  return "huge";
-}
-
-function randomInt(min, max) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-function shuffleArray(values) {
-  const next = [...values];
-
-  for (let index = next.length - 1; index > 0; index -= 1) {
-    const swapIndex = randomInt(0, index);
-    [next[index], next[swapIndex]] = [next[swapIndex], next[index]];
-  }
-
-  return next;
-}
-
-function getGiantTier() {
-  const wins = state.modeStats.giant.wins;
-
-  if (wins < 2) {
-    return giantTiers[0];
-  }
-  if (wins < 5) {
-    return giantTiers[1];
-  }
-  if (wins < 8) {
-    return giantTiers[2];
-  }
-  if (wins < 12) {
-    return giantTiers[3];
-  }
-
-  return giantTiers[4];
-}
-
-function getCountProfile() {
-  const stats = state.modeStats.count;
-  const attempts = stats.wins + stats.misses;
-  const accuracy = attempts ? stats.wins / attempts : 1;
-
-  if (attempts < 3 || accuracy < 0.55) {
-    return {
-      minTarget: 3,
-      maxTarget: 6,
-      answerCount: 3,
-      subtitle: "Count each one, then tap the number.",
-      preferredOffsets: [3, -3, 2, -2, 4, -4, 1, -1],
-    };
-  }
-
-  if (stats.streak >= 4 || accuracy > 0.82) {
-    return {
-      minTarget: 5,
-      maxTarget: 10,
-      answerCount: 4,
-      subtitle: "Look closely. The answers are sneaky now.",
-      preferredOffsets: [1, -1, 2, -2, 3, -3],
-    };
-  }
-
-  return {
-    minTarget: 4,
-    maxTarget: 8,
-    answerCount: 4,
-    subtitle: "Count them, then choose the answer.",
-    preferredOffsets: [2, -2, 1, -1, 3, -3],
-  };
-}
-
-function buildCountChoices(target, profile) {
-  const maxChoice = Math.max(12, profile.maxTarget + 3);
-  const values = new Set([target]);
-  const offsetPool = shuffleArray(profile.preferredOffsets);
-
-  offsetPool.forEach((offset) => {
-    if (values.size >= profile.answerCount) {
-      return;
-    }
-
-    const candidate = target + offset;
-
-    if (candidate >= 1 && candidate <= maxChoice) {
-      values.add(candidate);
-    }
-  });
-
-  while (values.size < profile.answerCount) {
-    const candidate = randomInt(1, maxChoice);
-    if (candidate !== target) {
-      values.add(candidate);
-    }
-  }
-
-  return shuffleArray([...values]);
 }
 
 function recordModeResult(didWin) {
@@ -627,7 +997,19 @@ function loadSettings() {
       return { ...defaultSettings };
     }
 
-    return { ...defaultSettings, ...JSON.parse(raw) };
+    const savedSettings = { ...defaultSettings, ...JSON.parse(raw) };
+    const allowedRoundSeconds = [15, 20, 30, 45];
+    const nextRoundSeconds = allowedRoundSeconds.includes(Number(savedSettings.roundSeconds))
+      ? Number(savedSettings.roundSeconds)
+      : defaultSettings.roundSeconds;
+
+    return {
+      playerName: String(savedSettings.playerName || defaultSettings.playerName),
+      roundSeconds: nextRoundSeconds,
+      timerEnabled: Boolean(savedSettings.timerEnabled),
+      voicePraise: Boolean(savedSettings.voicePraise),
+      soundEffects: Boolean(savedSettings.soundEffects),
+    };
   } catch {
     return { ...defaultSettings };
   }
@@ -641,14 +1023,74 @@ function persistSettings() {
   }
 }
 
+function loadProgress() {
+  try {
+    const raw = window.localStorage.getItem(PROGRESS_KEY);
+    const fallback = {
+      score: 0,
+      streak: 0,
+      stars: 0,
+      modeStats: createModeStats(),
+    };
+
+    if (!raw) {
+      return fallback;
+    }
+
+    const parsed = JSON.parse(raw);
+    const nextModeStats = createModeStats();
+
+    Object.keys(nextModeStats).forEach((modeKey) => {
+      const savedModeStats = parsed.modeStats?.[modeKey];
+      if (!savedModeStats) {
+        return;
+      }
+
+      nextModeStats[modeKey] = {
+        wins: Number(savedModeStats.wins) || 0,
+        misses: Number(savedModeStats.misses) || 0,
+        streak: Number(savedModeStats.streak) || 0,
+      };
+    });
+
+    return {
+      score: Number(parsed.score) || 0,
+      streak: Number(parsed.streak) || 0,
+      stars: Number(parsed.stars) || 0,
+      modeStats: nextModeStats,
+    };
+  } catch {
+    return {
+      score: 0,
+      streak: 0,
+      stars: 0,
+      modeStats: createModeStats(),
+    };
+  }
+}
+
+function persistProgress() {
+  try {
+    window.localStorage.setItem(
+      PROGRESS_KEY,
+      JSON.stringify({
+        score: state.score,
+        streak: state.streak,
+        stars: state.stars,
+        modeStats: state.modeStats,
+      })
+    );
+  } catch {
+    // Ignore storage failures in private browsing or restrictive webviews.
+  }
+}
+
 function speakPraise() {
   if (!state.settings.voicePraise || !("speechSynthesis" in window)) {
     return;
   }
 
-  const utterance = new SpeechSynthesisUtterance(
-    praiseLines[randomInt(0, praiseLines.length - 1)]
-  );
+  const utterance = new SpeechSynthesisUtterance(pickRandom(praiseLines));
   utterance.rate = 0.95;
   utterance.pitch = 1.25;
   window.speechSynthesis.cancel();
@@ -729,7 +1171,10 @@ function scheduleTone(audioContext, note) {
 
   oscillator.type = note.type;
   oscillator.frequency.setValueAtTime(note.frequency, note.startAt);
-  oscillator.frequency.exponentialRampToValueAtTime(note.endFrequency, note.startAt + note.duration);
+  oscillator.frequency.exponentialRampToValueAtTime(
+    note.endFrequency,
+    note.startAt + note.duration
+  );
 
   gain.gain.setValueAtTime(0.0001, note.startAt);
   gain.gain.exponentialRampToValueAtTime(note.volume, note.startAt + 0.02);
@@ -751,4 +1196,225 @@ function registerServiceWorker() {
       // Ignore registration failures and keep the app usable online.
     });
   });
+}
+
+function buildNearbyChoices(
+  correctValue,
+  answerCount,
+  maxValue,
+  { min = 1, offsets = [1, -1, 2, -2, 3, -3, 4, -4] } = {}
+) {
+  const values = new Set([correctValue]);
+
+  shuffleArray(offsets).forEach((offset) => {
+    if (values.size >= answerCount) {
+      return;
+    }
+
+    const candidate = correctValue + offset;
+    if (candidate >= min && candidate <= maxValue) {
+      values.add(candidate);
+    }
+  });
+
+  while (values.size < answerCount) {
+    values.add(randomInt(min, maxValue));
+  }
+
+  return shuffleArray([...values]);
+}
+
+function buildBondChoices(target, answerCount) {
+  const correctPair = randomPairForTotal(target);
+  const choices = [
+    {
+      first: correctPair[0],
+      second: correctPair[1],
+      correct: true,
+    },
+  ];
+  const seen = new Set([`${correctPair[0]}-${correctPair[1]}`]);
+
+  while (choices.length < answerCount) {
+    const first = randomInt(1, Math.min(9, target));
+    const second = randomInt(1, Math.min(9, target + 2));
+    const key = `${first}-${second}`;
+
+    if (first + second === target || seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    choices.push({
+      first,
+      second,
+      correct: false,
+    });
+  }
+
+  return shuffleArray(choices);
+}
+
+function randomPairForTotal(target) {
+  const first = randomInt(1, target - 1);
+  return [first, target - first];
+}
+
+function buildNumberChoiceHtml(value, label) {
+  return `
+    <span class="choice-value">${formatNumber(value)}</span>
+    <span class="choice-label">${label}</span>
+  `;
+}
+
+function buildWordChoiceHtml(word, label) {
+  return `
+    <span class="choice-word">${word}</span>
+    <span class="choice-label">${label}</span>
+  `;
+}
+
+function buildEquationChoiceHtml(first, second) {
+  return `
+    <span class="choice-equation">${formatNumber(first)} + ${formatNumber(second)}</span>
+    <span class="choice-label">number pair</span>
+  `;
+}
+
+function buildEmojiChoiceHtml(emoji, count, label) {
+  return `
+    <div class="emoji-choice-grid">
+      ${buildEmojiRun(emoji, count, "emoji-choice-item")}
+    </div>
+    <span class="choice-label">${label}</span>
+  `;
+}
+
+function buildCountSceneHtml(emoji, count, layoutClass) {
+  return `
+    <div class="scene-emoji-grid ${layoutClass}">
+      ${buildEmojiRun(emoji, count, "scene-emoji-item")}
+    </div>
+  `;
+}
+
+function buildEqualSceneHtml(emoji, leftCount, rightCount) {
+  return `
+    <div class="compare-scene">
+      <div class="compare-side">
+        <span class="compare-label">Left</span>
+        <div class="mini-emoji-grid">
+          ${buildEmojiRun(emoji, leftCount, "mini-emoji-item")}
+        </div>
+      </div>
+      <div class="compare-divider">vs</div>
+      <div class="compare-side">
+        <span class="compare-label">Right</span>
+        <div class="mini-emoji-grid">
+          ${buildEmojiRun(emoji, rightCount, "mini-emoji-item")}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function buildMakeTenSceneHtml(filledCount) {
+  return `
+    <div class="ten-scene">
+      ${buildTenFrameHtml(filledCount)}
+      <p class="scene-caption">${filledCount} spots are full. How many more fill all 10?</p>
+    </div>
+  `;
+}
+
+function buildTeenSceneHtml(target) {
+  const ones = target - 10;
+
+  return `
+    <div class="teen-scene">
+      <div class="teen-block">
+        <span class="teen-label">1 ten</span>
+        ${buildTenFrameHtml(10)}
+      </div>
+      <div class="teen-block">
+        <span class="teen-label">${ones} ones</span>
+        <div class="ones-strip">
+          ${buildEmojiRun("●", ones, "ones-chip")}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function buildTenFrameHtml(filledCount) {
+  return `
+    <div class="ten-frame">
+      ${Array.from({ length: 10 }, (_, index) => {
+        const filled = index < filledCount ? " filled" : "";
+        return `<span class="ten-cell${filled}"></span>`;
+      }).join("")}
+    </div>
+  `;
+}
+
+function buildStorySceneHtml(emoji, firstCount, secondCount, operation) {
+  const operator = operation === "subtract" ? "−" : "+";
+  const secondClass = operation === "subtract" ? "story-pack muted" : "story-pack";
+
+  return `
+    <div class="story-scene">
+      <div class="story-pack">
+        ${buildEmojiRun(emoji, firstCount, "story-item")}
+      </div>
+      <div class="story-operator">${operator}</div>
+      <div class="${secondClass}">
+        ${buildEmojiRun(emoji, secondCount, "story-item")}
+      </div>
+    </div>
+  `;
+}
+
+function buildEmojiRun(emoji, count, className) {
+  return Array.from({ length: count }, () => `<span class="${className}">${emoji}</span>`).join("");
+}
+
+function getCountSubtitle(layoutClass) {
+  const subtitles = {
+    "line-layout": "Touch each one once as you count.",
+    "array-layout": "Rows still count one by one.",
+    "scatter-layout": "Say one number for each object you see.",
+  };
+
+  return subtitles[layoutClass] || "Count carefully.";
+}
+
+function pluralize(item, count) {
+  return count === 1 ? item.singular : item.plural;
+}
+
+function formatNumber(value) {
+  return new Intl.NumberFormat("en-US").format(value);
+}
+
+function pickRandom(values) {
+  return values[randomInt(0, values.length - 1)];
+}
+
+function randomInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function shuffleArray(values) {
+  const next = [...values];
+
+  for (let index = next.length - 1; index > 0; index -= 1) {
+    const swapIndex = randomInt(0, index);
+    [next[index], next[swapIndex]] = [next[swapIndex], next[index]];
+  }
+
+  return next;
 }

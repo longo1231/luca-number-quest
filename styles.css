@@ -3,13 +3,13 @@
   --bg-bottom: #ffe0b0;
   --ink: #2b1d15;
   --card: rgba(255, 252, 246, 0.9);
+  --white: #ffffff;
   --shadow: 0 16px 40px rgba(118, 57, 10, 0.14);
   --coral: #ff7a45;
   --sky: #4db6ff;
   --sun: #ffd84d;
   --mint: #7ce0a3;
   --danger: #ff5b6e;
-  --white: #ffffff;
 }
 
 * {
@@ -26,7 +26,7 @@ body {
   font-family: "Avenir Next", "Trebuchet MS", "Verdana", sans-serif;
   color: var(--ink);
   background:
-    radial-gradient(circle at top left, rgba(255, 255, 255, 0.7), transparent 28%),
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.72), transparent 28%),
     linear-gradient(180deg, var(--bg-top) 0%, var(--bg-bottom) 100%);
 }
 
@@ -42,7 +42,7 @@ button {
 }
 
 .app-shell {
-  max-width: 900px;
+  max-width: 940px;
   margin: 0 auto;
   padding: 20px 18px 36px;
 }
@@ -189,7 +189,7 @@ main {
 
 .menu-button strong {
   display: block;
-  font-size: clamp(1.5rem, 4vw, 2rem);
+  font-size: clamp(1.35rem, 4vw, 1.9rem);
 }
 
 .menu-button small {
@@ -220,9 +220,14 @@ main {
   background: linear-gradient(135deg, #fff1a3, #fff9d7);
 }
 
+.mint {
+  background: linear-gradient(135deg, #d9ffe7, #f3fff8);
+}
+
 .tip-panel,
 .prompt-panel,
-.settings-card {
+.settings-card,
+.scene-card {
   margin-top: 18px;
   padding: 18px;
   border-radius: 28px;
@@ -255,6 +260,10 @@ main {
   text-align: center;
 }
 
+.timer-chip.off {
+  color: #6f4b29;
+}
+
 .small-button,
 .ghost-button {
   padding: 12px 16px;
@@ -277,6 +286,10 @@ main {
   overflow: hidden;
 }
 
+.timer-bar.hidden {
+  display: none;
+}
+
 .timer-fill {
   width: 100%;
   height: 100%;
@@ -294,7 +307,7 @@ main {
 
 .prompt-panel h2 {
   margin: 0;
-  font-size: clamp(2rem, 5vw, 3.2rem);
+  font-size: clamp(1.9rem, 5vw, 3rem);
   line-height: 1;
 }
 
@@ -309,12 +322,31 @@ main {
   margin-top: 18px;
 }
 
+.scene-choice-layout {
+  grid-template-columns: 1fr;
+}
+
+.two-choice-grid,
+.answer-choice-grid,
+.binary-choice-grid {
+  display: grid;
+  gap: 16px;
+}
+
 .two-choice-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.answer-choice-grid {
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+}
+
+.binary-choice-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .choice-button {
-  min-height: 200px;
+  min-height: 168px;
   padding: 18px;
   border-radius: 30px;
   background: var(--white);
@@ -322,71 +354,231 @@ main {
   color: var(--ink);
 }
 
-.choice-button .choice-value {
+.choice-value,
+.choice-word,
+.choice-equation {
   display: block;
-  font-size: clamp(2.6rem, 8vw, 5rem);
   font-weight: 900;
   line-height: 1;
+}
+
+.choice-value {
+  font-size: clamp(2.6rem, 8vw, 4.8rem);
   overflow-wrap: anywhere;
 }
 
-.choice-button .choice-label {
+.choice-word {
+  font-size: clamp(2rem, 6vw, 3rem);
+}
+
+.choice-equation {
+  font-size: clamp(1.9rem, 5vw, 3rem);
+}
+
+.choice-label {
   display: block;
   margin-top: 12px;
-  font-size: 1.1rem;
+  font-size: 1rem;
   color: #7f5631;
 }
 
-.giant-choice .choice-value {
-  font-size: clamp(1.9rem, 5.5vw, 3.7rem);
-  line-height: 0.92;
-  letter-spacing: -0.05em;
+.compact-choice {
+  min-height: 120px;
 }
 
-.giant-choice[data-digits="6"] .choice-value,
-.giant-choice[data-digits="7"] .choice-value {
-  font-size: clamp(1.7rem, 4.9vw, 3.1rem);
+.equation-choice {
+  min-height: 136px;
 }
 
-.giant-choice[data-digits="8"] .choice-value {
-  font-size: clamp(1.45rem, 4.2vw, 2.6rem);
+.emoji-choice {
+  min-height: 200px;
 }
 
-.count-select-layout {
-  grid-template-columns: 1fr;
-}
-
-.count-scene {
-  padding: 18px;
-  border-radius: 30px;
-  background: rgba(255, 255, 255, 0.76);
-  box-shadow: var(--shadow);
-}
-
-.count-scene-grid {
+.emoji-choice-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(74px, 1fr));
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(40px, 1fr));
+}
+
+.emoji-choice-item {
+  display: grid;
+  place-items: center;
+  min-height: 52px;
+  border-radius: 16px;
+  background: rgba(255, 248, 235, 0.95);
+  font-size: 1.9rem;
+}
+
+.scene-card {
+  margin-top: 0;
+}
+
+.scene-emoji-grid {
+  display: grid;
   gap: 12px;
 }
 
-.count-scene-item {
+.line-layout {
+  grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+}
+
+.array-layout {
+  grid-template-columns: repeat(auto-fit, minmax(54px, 1fr));
+}
+
+.scatter-layout {
+  grid-template-columns: repeat(auto-fit, minmax(54px, 1fr));
+}
+
+.scene-emoji-item {
   display: grid;
   place-items: center;
-  min-height: 86px;
+  min-height: 68px;
+  padding: 10px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.95);
+  font-size: clamp(1.8rem, 5vw, 2.7rem);
+}
+
+.scatter-layout .scene-emoji-item:nth-child(odd) {
+  transform: translateY(6px) rotate(-3deg);
+}
+
+.scatter-layout .scene-emoji-item:nth-child(even) {
+  transform: translateY(-4px) rotate(2deg);
+}
+
+.compare-scene {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+}
+
+.compare-side {
   padding: 14px;
   border-radius: 22px;
-  background: rgba(255, 255, 255, 0.95);
-  font-size: clamp(2.1rem, 6vw, 3.2rem);
+  background: rgba(255, 255, 255, 0.72);
 }
 
-.count-answer-grid {
+.compare-label,
+.teen-label {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 0.95rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #8f5825;
+}
+
+.compare-divider,
+.story-operator {
+  font-size: 1.5rem;
+  font-weight: 900;
+  color: #93531c;
+}
+
+.mini-emoji-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(32px, 1fr));
+}
+
+.mini-emoji-item {
+  display: grid;
+  place-items: center;
+  min-height: 40px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.96);
+  font-size: 1.55rem;
+}
+
+.ten-scene,
+.teen-scene {
   display: grid;
   gap: 16px;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
-.count-choice .choice-value {
-  font-size: clamp(3rem, 8vw, 4.7rem);
+.teen-scene {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.teen-block {
+  padding: 14px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.ten-frame {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.ten-cell {
+  min-height: 42px;
+  border-radius: 14px;
+  border: 2px dashed rgba(143, 88, 37, 0.28);
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.ten-cell.filled {
+  border-style: solid;
+  border-color: rgba(255, 180, 94, 0.9);
+  background: linear-gradient(135deg, #ffd88f, #ffb36c);
+}
+
+.ones-strip {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(38px, 1fr));
+}
+
+.ones-chip {
+  display: grid;
+  place-items: center;
+  min-height: 42px;
+  border-radius: 14px;
+  background: rgba(77, 182, 255, 0.12);
+  color: #2a80b9;
+  font-size: 1.2rem;
+  font-weight: 900;
+}
+
+.scene-caption {
+  margin: 0;
+  line-height: 1.45;
+  color: #6f4b29;
+}
+
+.story-scene {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+}
+
+.story-pack {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(34px, 1fr));
+  padding: 14px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.story-pack.muted {
+  opacity: 0.46;
+}
+
+.story-item {
+  display: grid;
+  place-items: center;
+  min-height: 42px;
+  border-radius: 14px;
+  background: rgba(255, 252, 246, 0.98);
+  font-size: 1.6rem;
 }
 
 .feedback {
@@ -437,6 +629,10 @@ main {
   border: 2px solid rgba(145, 85, 33, 0.18);
   border-radius: 18px;
   background: #fffdfa;
+}
+
+.field select:disabled {
+  opacity: 0.55;
 }
 
 .toggle {
@@ -506,15 +702,23 @@ main {
   }
 
   .two-choice-grid,
-  .count-answer-grid {
+  .answer-choice-grid,
+  .binary-choice-grid,
+  .compare-scene,
+  .story-scene {
     grid-template-columns: 1fr;
   }
 
   .choice-button {
-    min-height: 150px;
+    min-height: 138px;
   }
 
-  .count-scene-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+  .emoji-choice {
+    min-height: 164px;
+  }
+
+  .compare-divider,
+  .story-operator {
+    text-align: center;
   }
 }

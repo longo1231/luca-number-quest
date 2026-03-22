@@ -1,7 +1,7 @@
 {
   "name": "Luca Number Quest",
   "short_name": "Number Quest",
-  "description": "A simple touch-first number game for young kids.",
+  "description": "A simple touch-first kindergarten number game for counting, comparing, number pairs, and teen numbers.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
