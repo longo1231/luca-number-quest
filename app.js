@@ -60,6 +60,7 @@ const state = {
   currentRound: null,
   modeStats: savedProgress.modeStats,
   audioContext: null,
+  availableVoices: [],
 };
 
 const elements = {
@@ -102,6 +103,7 @@ function init() {
   populateSettingsForm();
   syncTimerSettingsState();
   updateTimerVisual();
+  syncAvailableVoices();
   updateReadPromptButton();
   refreshHeader();
   updateStats();
@@ -121,6 +123,10 @@ function bindEvents() {
   elements.timerToggle.addEventListener("change", syncTimerSettingsState);
   elements.saveSettings.addEventListener("click", saveSettings);
   elements.resetProgress.addEventListener("click", resetProgress);
+
+  if (canSpeak()) {
+    window.speechSynthesis.addEventListener("voiceschanged", syncAvailableVoices);
+  }
 }
 
 function createModeStats() {
@@ -1112,9 +1118,7 @@ function speakPraise() {
   }
 
   const utterance = new SpeechSynthesisUtterance(pickRandom(praiseLines));
-  utterance.rate = 0.95;
-  utterance.pitch = 1.25;
-  speakUtterance(utterance);
+  speakUtterance(utterance, "praise");
 }
 
 function readCurrentPrompt() {
@@ -1132,16 +1136,100 @@ function readCurrentPrompt() {
   }
 
   const utterance = new SpeechSynthesisUtterance(speechParts.join(" "));
-  utterance.rate = 0.9;
-  utterance.pitch = 1.05;
-  speakUtterance(utterance);
+  speakUtterance(utterance, "prompt");
 }
 
 function canSpeak() {
   return "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
 }
 
-function speakUtterance(utterance) {
+function syncAvailableVoices() {
+  if (!canSpeak()) {
+    state.availableVoices = [];
+    return;
+  }
+
+  state.availableVoices = window.speechSynthesis
+    .getVoices()
+    .slice()
+    .sort(compareSpeechVoices);
+}
+
+function compareSpeechVoices(first, second) {
+  const scoreDelta = scoreSpeechVoice(second) - scoreSpeechVoice(first);
+  if (scoreDelta !== 0) {
+    return scoreDelta;
+  }
+
+  return (first.name || "").localeCompare(second.name || "");
+}
+
+function scoreSpeechVoice(voice) {
+  const name = (voice.name || "").toLowerCase();
+  const lang = (voice.lang || "").toLowerCase();
+  let score = 0;
+
+  if (lang.startsWith("en-us")) {
+    score += 30;
+  } else if (lang.startsWith("en")) {
+    score += 22;
+  }
+
+  if (voice.localService) {
+    score += 8;
+  }
+
+  if (voice.default) {
+    score += 6;
+  }
+
+  [
+    ["samantha", 40],
+    ["ava", 32],
+    ["allison", 32],
+    ["daniel", 28],
+    ["moira", 26],
+    ["karen", 24],
+    ["siri", 22],
+    ["google us english", 18],
+    ["google uk english female", 16],
+    ["microsoft aria", 16],
+    ["microsoft guy", 14],
+    ["victoria", 12],
+    ["alex", 10],
+  ].forEach(([token, bonus]) => {
+    if (name.includes(token)) {
+      score += bonus;
+    }
+  });
+
+  return score;
+}
+
+function getBestAvailableVoice() {
+  if (!state.availableVoices.length) {
+    syncAvailableVoices();
+  }
+
+  return state.availableVoices[0] || null;
+}
+
+function speakUtterance(utterance, kind = "prompt") {
+  if (!canSpeak()) {
+    return;
+  }
+
+  const voice = getBestAvailableVoice();
+  if (voice) {
+    utterance.voice = voice;
+    utterance.lang = voice.lang;
+  } else {
+    utterance.lang = "en-US";
+  }
+
+  utterance.rate = kind === "praise" ? 0.98 : 0.9;
+  utterance.pitch = kind === "praise" ? 1.12 : 1;
+
   stopSpeech();
   window.speechSynthesis.speak(utterance);
 }
