@@ -80,6 +80,7 @@ const elements = {
   promptKicker: document.querySelector("#prompt-kicker"),
   promptTitle: document.querySelector("#prompt-title"),
   promptSubtitle: document.querySelector("#prompt-subtitle"),
+  readPrompt: document.querySelector("#read-prompt"),
   choices: document.querySelector("#choices"),
   feedback: document.querySelector("#feedback"),
   parentsButton: document.querySelector("#parents-button"),
@@ -101,6 +102,7 @@ function init() {
   populateSettingsForm();
   syncTimerSettingsState();
   updateTimerVisual();
+  updateReadPromptButton();
   refreshHeader();
   updateStats();
   showScreen("home");
@@ -115,6 +117,7 @@ function bindEvents() {
   elements.parentsButton.addEventListener("click", openSettings);
   elements.closeSettings.addEventListener("click", closeSettings);
   elements.backButton.addEventListener("click", goHome);
+  elements.readPrompt.addEventListener("click", readCurrentPrompt);
   elements.timerToggle.addEventListener("change", syncTimerSettingsState);
   elements.saveSettings.addEventListener("click", saveSettings);
   elements.resetProgress.addEventListener("click", resetProgress);
@@ -152,6 +155,7 @@ function nextRound() {
 
   clearQueuedRound();
   clearTimer();
+  stopSpeech();
   clearFeedback();
 
   const round = generateRound(state.mode);
@@ -719,6 +723,7 @@ function renderRound(round) {
   elements.promptKicker.textContent = round.kicker;
   elements.promptTitle.textContent = round.title;
   elements.promptSubtitle.textContent = round.subtitle;
+  updateReadPromptButton();
   elements.choices.innerHTML = "";
 
   if (round.type === "choice") {
@@ -802,6 +807,8 @@ function handleIncorrect(message) {
 function endRound() {
   state.roundActive = false;
   clearTimer();
+  stopSpeech();
+  updateReadPromptButton();
 }
 
 function queueNextRound(delay) {
@@ -821,6 +828,7 @@ function clearQueuedRound() {
 
 function startTimer() {
   state.roundActive = true;
+  updateReadPromptButton();
 
   if (!state.settings.timerEnabled) {
     updateTimerVisual();
@@ -871,6 +879,12 @@ function clearTimer() {
   }
 }
 
+function updateReadPromptButton() {
+  const supported = canSpeak();
+  elements.readPrompt.classList.toggle("hidden", !supported);
+  elements.readPrompt.disabled = !supported || !state.currentRound || !state.roundActive;
+}
+
 function showScreen(name) {
   Object.entries(elements.screens).forEach(([screenName, element]) => {
     element.classList.toggle("active", screenName === name);
@@ -880,8 +894,10 @@ function showScreen(name) {
 function goHome() {
   clearQueuedRound();
   endRound();
+  stopSpeech();
   state.mode = null;
   state.currentRound = null;
+  updateReadPromptButton();
   clearFeedback();
   refreshHeader();
   showScreen("home");
@@ -890,13 +906,16 @@ function goHome() {
 function openSettings() {
   clearQueuedRound();
   endRound();
+  stopSpeech();
   populateSettingsForm();
   showScreen("settings");
 }
 
 function closeSettings() {
+  stopSpeech();
   state.mode = null;
   state.currentRound = null;
+  updateReadPromptButton();
   refreshHeader();
   showScreen("home");
 }
@@ -958,12 +977,14 @@ function clearFeedback() {
 function resetProgress() {
   clearQueuedRound();
   endRound();
+  stopSpeech();
   state.score = 0;
   state.streak = 0;
   state.stars = 0;
   state.mode = null;
   state.currentRound = null;
   state.modeStats = createModeStats();
+  updateReadPromptButton();
   persistProgress();
   updateStats();
   clearFeedback();
@@ -1086,15 +1107,51 @@ function persistProgress() {
 }
 
 function speakPraise() {
-  if (!state.settings.voicePraise || !("speechSynthesis" in window)) {
+  if (!state.settings.voicePraise || !canSpeak()) {
     return;
   }
 
   const utterance = new SpeechSynthesisUtterance(pickRandom(praiseLines));
   utterance.rate = 0.95;
   utterance.pitch = 1.25;
-  window.speechSynthesis.cancel();
+  speakUtterance(utterance);
+}
+
+function readCurrentPrompt() {
+  if (!state.currentRound || !canSpeak()) {
+    return;
+  }
+
+  const speechParts = [
+    state.currentRound.kicker,
+    state.currentRound.title,
+  ];
+
+  if (state.currentRound.subtitle) {
+    speechParts.push(state.currentRound.subtitle);
+  }
+
+  const utterance = new SpeechSynthesisUtterance(speechParts.join(" "));
+  utterance.rate = 0.9;
+  utterance.pitch = 1.05;
+  speakUtterance(utterance);
+}
+
+function canSpeak() {
+  return "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
+}
+
+function speakUtterance(utterance) {
+  stopSpeech();
   window.speechSynthesis.speak(utterance);
+}
+
+function stopSpeech() {
+  if (!canSpeak()) {
+    return;
+  }
+
+  window.speechSynthesis.cancel();
 }
 
 function playSoundEffect(effectName) {

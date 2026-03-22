@@ -316,6 +316,29 @@ main {
   font-size: 1.05rem;
 }
 
+.read-prompt-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
+  font-weight: 800;
+}
+
+.read-prompt-button::before {
+  content: "🔊";
+  font-size: 1rem;
+}
+
+.read-prompt-button.hidden {
+  display: none;
+}
+
+.read-prompt-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .choices {
   display: grid;
   gap: 16px;
