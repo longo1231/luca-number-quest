@@ -9,8 +9,6 @@ const defaultSettings = {
   soundEffects: true,
 };
 
-const savedProgress = loadProgress();
-
 const modes = {
   count: {
     label: "Count It",
@@ -29,6 +27,8 @@ const modes = {
     kicker: "Ten and some more ones.",
   },
 };
+
+const savedProgress = loadProgress();
 
 const countItems = [
   { emoji: "🧸", singular: "bear", plural: "bears" },
