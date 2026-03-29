@@ -1210,16 +1210,7 @@ function readCurrentPrompt() {
     return;
   }
 
-  const speechParts = [
-    state.currentRound.kicker,
-    state.currentRound.title,
-  ];
-
-  if (state.currentRound.subtitle) {
-    speechParts.push(state.currentRound.subtitle);
-  }
-
-  const utterance = new SpeechSynthesisUtterance(speechParts.join(" "));
+  const utterance = new SpeechSynthesisUtterance(state.currentRound.title);
   speakUtterance(utterance, "prompt");
 }
 
