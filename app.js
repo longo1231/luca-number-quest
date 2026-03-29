@@ -40,11 +40,39 @@ const countItems = [
 ];
 
 const praiseLines = [
-  "Super job!",
-  "You got it!",
-  "Math rocket!",
-  "Kindergarten power!",
-  "Amazing thinking!",
+  "Woohoo, you got it!",
+  "Yes! That's right!",
+  "Amazing! You're a math star!",
+  "Fantastic thinking!",
+  "Oh yeah! Super smart!",
+  "You nailed it!",
+  "Incredible! Way to go!",
+  "Boom! Correct!",
+  "You're on fire!",
+  "That's it! Brilliant!",
+  "Math hero!",
+  "Spectacular!",
+  "Yes yes yes! You did it!",
+  "Super duper smart!",
+  "Kindergarten champion!",
+  "Number ninja! Correct!",
+  "You rock!",
+  "Hooray! Perfect answer!",
+  "Smart brain! Yes!",
+  "You crushed it!",
+  "Gold star for you!",
+  "Math magic! Correct!",
+  "Awesome job!",
+  "Like a rocket! Correct!",
+  "Magnificent thinking!",
+];
+
+const milestonePraise = [
+  "Five in a row! You are amazing!",
+  "Unstoppable! Five correct!",
+  "You are a math superstar!",
+  "Five in a row! Incredible!",
+  "Woohoo! Five in a row!",
 ];
 
 const state = {
@@ -63,9 +91,32 @@ const state = {
   availableVoices: [],
 };
 
+const MUSIC_NOTES = [
+  { freq: 523.25, dur: 0.18 }, // C5
+  { freq: 659.25, dur: 0.18 }, // E5
+  { freq: 783.99, dur: 0.18 }, // G5
+  { freq: 659.25, dur: 0.18 }, // E5
+  { freq: 523.25, dur: 0.28 }, // C5 (held)
+  { freq: 0,      dur: 0.10 }, // rest
+  { freq: 392.00, dur: 0.18 }, // G4
+  { freq: 440.00, dur: 0.18 }, // A4
+  { freq: 523.25, dur: 0.18 }, // C5
+  { freq: 587.33, dur: 0.18 }, // D5
+  { freq: 659.25, dur: 0.28 }, // E5 (held)
+  { freq: 0,      dur: 0.18 }, // rest
+];
+
+const music = {
+  nextNoteTime: 0,
+  noteIndex: 0,
+  schedulerInterval: null,
+  playing: false,
+};
+
 const elements = {
   appTitle: document.querySelector("#app-title"),
   heroMessage: document.querySelector("#hero-message"),
+  statsPanel: document.querySelector(".stats-panel"),
   score: document.querySelector("#score-value"),
   streak: document.querySelector("#streak-value"),
   stars: document.querySelector("#stars-value"),
@@ -151,6 +202,7 @@ function startMode(mode) {
   clearFeedback();
   showScreen("game");
   playSoundEffect("start");
+  startBackgroundMusic();
   nextRound();
 }
 
@@ -769,6 +821,11 @@ function buildChoiceButton(choice, round) {
       return;
     }
 
+    button.classList.remove("tapped");
+    void button.offsetWidth;
+    button.classList.add("tapped");
+    setTimeout(() => button.classList.remove("tapped"), 300);
+
     playSoundEffect("tap");
     if (choice.correct) {
       handleCorrect(round.successMessage);
@@ -792,11 +849,27 @@ function handleCorrect(customMessage) {
   state.streak += 1;
   state.stars += 1;
   persistProgress();
-  updateStats();
-  playSoundEffect("success");
-  showFeedback("success", customMessage || pickRandom(praiseLines));
-  speakPraise();
-  queueNextRound(950);
+  updateStats(true);
+
+  const isMilestone = state.streak > 0 && state.streak % 5 === 0;
+
+  if (isMilestone) {
+    playSoundEffect("milestone");
+    launchConfetti(60);
+    elements.statsPanel.classList.remove("milestone");
+    void elements.statsPanel.offsetWidth;
+    elements.statsPanel.classList.add("milestone");
+    const msg = pickRandom(milestonePraise);
+    showFeedback("success", msg);
+    speakCustom(msg);
+    queueNextRound(1800);
+  } else {
+    playSoundEffect("success");
+    launchConfetti(28);
+    showFeedback("success", customMessage || pickRandom(praiseLines));
+    speakPraise();
+    queueNextRound(1000);
+  }
 }
 
 function handleIncorrect(message) {
@@ -901,6 +974,7 @@ function goHome() {
   clearQueuedRound();
   endRound();
   stopSpeech();
+  stopBackgroundMusic();
   state.mode = null;
   state.currentRound = null;
   updateReadPromptButton();
@@ -913,6 +987,7 @@ function openSettings() {
   clearQueuedRound();
   endRound();
   stopSpeech();
+  stopBackgroundMusic();
   populateSettingsForm();
   showScreen("settings");
 }
@@ -964,15 +1039,24 @@ function refreshHeader() {
   elements.heroMessage.textContent = `${name} can practice kindergarten number skills and help the rocket blast off.`;
 }
 
-function updateStats() {
+function updateStats(animate = false) {
   elements.score.textContent = String(state.score);
   elements.streak.textContent = String(state.streak);
   elements.stars.textContent = String(state.stars);
+  if (animate) {
+    [elements.score, elements.streak, elements.stars].forEach((el) => {
+      el.classList.remove("popping");
+      void el.offsetWidth;
+      el.classList.add("popping");
+    });
+  }
 }
 
 function showFeedback(type, message) {
   elements.feedback.className = `feedback ${type}`;
   elements.feedback.textContent = message;
+  void elements.feedback.offsetWidth;
+  elements.feedback.classList.add("animate");
 }
 
 function clearFeedback() {
@@ -1227,8 +1311,8 @@ function speakUtterance(utterance, kind = "prompt") {
     utterance.lang = "en-US";
   }
 
-  utterance.rate = kind === "praise" ? 0.98 : 0.9;
-  utterance.pitch = kind === "praise" ? 1.12 : 1;
+  utterance.rate = kind === "praise" ? 1.12 : 0.9;
+  utterance.pitch = kind === "praise" ? 1.5 : 1.05;
 
   stopSpeech();
   window.speechSynthesis.speak(utterance);
@@ -1254,25 +1338,37 @@ function playSoundEffect(effectName) {
 
   const patterns = {
     tap: [
-      { delay: 0, frequency: 520, endFrequency: 430, duration: 0.035, type: "square", volume: 0.012 },
-      { delay: 0.03, frequency: 620, endFrequency: 760, duration: 0.04, type: "triangle", volume: 0.012 },
+      { delay: 0, frequency: 800, endFrequency: 900, duration: 0.05, type: "sine", volume: 0.045 },
     ],
     start: [
-      { delay: 0, frequency: 210, endFrequency: 520, duration: 0.09, type: "triangle", volume: 0.04 },
-      { delay: 0.05, frequency: 520, endFrequency: 260, duration: 0.07, type: "sine", volume: 0.02 },
-      { delay: 0.11, frequency: 360, endFrequency: 780, duration: 0.08, type: "square", volume: 0.022 },
+      { delay: 0,    frequency: 330,  endFrequency: 660,  duration: 0.12, type: "triangle", volume: 0.10 },
+      { delay: 0.10, frequency: 440,  endFrequency: 880,  duration: 0.12, type: "triangle", volume: 0.11 },
+      { delay: 0.20, frequency: 523,  endFrequency: 1046, duration: 0.18, type: "sine",     volume: 0.12 },
+      { delay: 0.20, frequency: 659,  endFrequency: 1319, duration: 0.18, type: "triangle", volume: 0.07 },
     ],
     success: [
-      { delay: 0, frequency: 240, endFrequency: 420, duration: 0.07, type: "sine", volume: 0.022 },
-      { delay: 0.06, frequency: 420, endFrequency: 660, duration: 0.08, type: "triangle", volume: 0.04 },
-      { delay: 0.15, frequency: 660, endFrequency: 980, duration: 0.08, type: "square", volume: 0.03 },
-      { delay: 0.24, frequency: 980, endFrequency: 720, duration: 0.11, type: "triangle", volume: 0.028 },
-      { delay: 0.32, frequency: 540, endFrequency: 1240, duration: 0.1, type: "square", volume: 0.02 },
+      { delay: 0,    frequency: 392,  endFrequency: 392,  duration: 0.10, type: "sine",     volume: 0.11 },
+      { delay: 0.10, frequency: 523,  endFrequency: 523,  duration: 0.10, type: "sine",     volume: 0.11 },
+      { delay: 0.20, frequency: 659,  endFrequency: 659,  duration: 0.10, type: "sine",     volume: 0.12 },
+      { delay: 0.30, frequency: 784,  endFrequency: 784,  duration: 0.24, type: "sine",     volume: 0.13 },
+      { delay: 0.30, frequency: 988,  endFrequency: 988,  duration: 0.24, type: "triangle", volume: 0.07 },
+      { delay: 0.30, frequency: 523,  endFrequency: 523,  duration: 0.24, type: "sine",     volume: 0.07 },
     ],
     fail: [
-      { delay: 0, frequency: 480, endFrequency: 240, duration: 0.1, type: "sawtooth", volume: 0.03 },
-      { delay: 0.09, frequency: 240, endFrequency: 120, duration: 0.15, type: "triangle", volume: 0.03 },
-      { delay: 0.22, frequency: 150, endFrequency: 90, duration: 0.16, type: "sine", volume: 0.024 },
+      { delay: 0,    frequency: 350,  endFrequency: 260,  duration: 0.14, type: "sine",     volume: 0.07 },
+      { delay: 0.15, frequency: 260,  endFrequency: 200,  duration: 0.18, type: "sine",     volume: 0.06 },
+    ],
+    milestone: [
+      { delay: 0,    frequency: 392,  endFrequency: 392,  duration: 0.10, type: "sine",     volume: 0.12 },
+      { delay: 0.10, frequency: 523,  endFrequency: 523,  duration: 0.10, type: "sine",     volume: 0.12 },
+      { delay: 0.20, frequency: 659,  endFrequency: 659,  duration: 0.10, type: "sine",     volume: 0.12 },
+      { delay: 0.30, frequency: 784,  endFrequency: 784,  duration: 0.10, type: "sine",     volume: 0.13 },
+      { delay: 0.40, frequency: 988,  endFrequency: 988,  duration: 0.28, type: "sine",     volume: 0.14 },
+      { delay: 0.40, frequency: 523,  endFrequency: 523,  duration: 0.28, type: "sine",     volume: 0.08 },
+      { delay: 0.40, frequency: 1319, endFrequency: 1319, duration: 0.28, type: "triangle", volume: 0.06 },
+      { delay: 0.70, frequency: 784,  endFrequency: 784,  duration: 0.38, type: "sine",     volume: 0.12 },
+      { delay: 0.70, frequency: 988,  endFrequency: 988,  duration: 0.38, type: "sine",     volume: 0.10 },
+      { delay: 0.70, frequency: 1319, endFrequency: 1319, duration: 0.38, type: "triangle", volume: 0.07 },
     ],
   };
 
@@ -1341,6 +1437,98 @@ function registerServiceWorker() {
       // Ignore registration failures and keep the app usable online.
     });
   });
+}
+
+function launchConfetti(count = 30) {
+  const colors = ["#ff7a45", "#4db6ff", "#ffd84d", "#7ce0a3", "#ff5b6e", "#c084fc", "#fb923c", "#34d399"];
+  const shapes = ["", "round"];
+
+  for (let i = 0; i < count; i++) {
+    const piece = document.createElement("div");
+    piece.className = `confetti-piece ${shapes[Math.floor(Math.random() * shapes.length)]}`;
+    piece.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+    piece.style.left = `${10 + Math.random() * 80}vw`;
+    piece.style.top = `${15 + Math.random() * 55}vh`;
+    piece.style.setProperty("--dx", `${(Math.random() - 0.5) * 260}px`);
+    piece.style.setProperty("--dy", `${-70 - Math.random() * 230}px`);
+    piece.style.setProperty("--rot", `${Math.random() * 720 - 360}deg`);
+    piece.style.animationDelay = `${Math.random() * 0.22}s`;
+    piece.style.width = `${6 + Math.random() * 10}px`;
+    piece.style.height = `${6 + Math.random() * 10}px`;
+    document.body.appendChild(piece);
+    setTimeout(() => piece.remove(), 1300);
+  }
+}
+
+function startBackgroundMusic() {
+  if (!state.settings.soundEffects) {
+    return;
+  }
+
+  const audioContext = getAudioContext();
+  if (!audioContext) {
+    return;
+  }
+
+  if (music.playing) {
+    return;
+  }
+
+  music.playing = true;
+  music.nextNoteTime = audioContext.currentTime + 0.9;
+  music.noteIndex = 0;
+  scheduleMusicNotes();
+  music.schedulerInterval = setInterval(scheduleMusicNotes, 150);
+}
+
+function stopBackgroundMusic() {
+  music.playing = false;
+
+  if (music.schedulerInterval) {
+    clearInterval(music.schedulerInterval);
+    music.schedulerInterval = null;
+  }
+}
+
+function scheduleMusicNotes() {
+  const audioContext = state.audioContext;
+
+  if (!audioContext || !music.playing) {
+    return;
+  }
+
+  const lookAhead = 0.35;
+  const VOL = 0.011;
+
+  while (music.nextNoteTime < audioContext.currentTime + lookAhead) {
+    const note = MUSIC_NOTES[music.noteIndex % MUSIC_NOTES.length];
+
+    if (note.freq > 0) {
+      const osc = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(note.freq, music.nextNoteTime);
+      gain.gain.setValueAtTime(0.0001, music.nextNoteTime);
+      gain.gain.exponentialRampToValueAtTime(VOL, music.nextNoteTime + 0.025);
+      gain.gain.exponentialRampToValueAtTime(0.0001, music.nextNoteTime + note.dur - 0.025);
+      osc.connect(gain);
+      gain.connect(audioContext.destination);
+      osc.start(music.nextNoteTime);
+      osc.stop(music.nextNoteTime + note.dur);
+    }
+
+    music.nextNoteTime += note.dur;
+    music.noteIndex += 1;
+  }
+}
+
+function speakCustom(text) {
+  if (!state.settings.voicePraise || !canSpeak()) {
+    return;
+  }
+
+  const utterance = new SpeechSynthesisUtterance(text);
+  speakUtterance(utterance, "praise");
 }
 
 function buildNearbyChoices(
