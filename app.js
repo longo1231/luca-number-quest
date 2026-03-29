@@ -116,6 +116,7 @@ const music = {
 const elements = {
   appTitle: document.querySelector("#app-title"),
   heroMessage: document.querySelector("#hero-message"),
+  heroRocket: document.querySelector(".hero-rocket"),
   statsPanel: document.querySelector(".stats-panel"),
   score: document.querySelector("#score-value"),
   streak: document.querySelector("#streak-value"),
@@ -158,6 +159,8 @@ function init() {
   updateReadPromptButton();
   refreshHeader();
   updateStats();
+  updateStreakVisuals();
+  createBackgroundParticles();
   showScreen("home");
   registerServiceWorker();
 }
@@ -219,7 +222,9 @@ function nextRound() {
   const round = generateRound(state.mode);
   state.currentRound = round;
   renderRound(round);
+  animateSceneItems();
   startTimer();
+  autoReadPrompt();
 }
 
 function generateRound(mode) {
@@ -828,10 +833,13 @@ function buildChoiceButton(choice, round) {
 
     playSoundEffect("tap");
     if (choice.correct) {
+      button.classList.add("correct-flash");
       handleCorrect(round.successMessage);
       return;
     }
 
+    button.classList.add("wrong-flash");
+    shakeGameScreen();
     handleIncorrect(round.failureMessage);
   });
 
@@ -850,12 +858,13 @@ function handleCorrect(customMessage) {
   state.stars += 1;
   persistProgress();
   updateStats(true);
+  updateStreakVisuals();
 
   const isMilestone = state.streak > 0 && state.streak % 5 === 0;
 
   if (isMilestone) {
     playSoundEffect("milestone");
-    launchConfetti(60);
+    launchConfetti(70);
     elements.statsPanel.classList.remove("milestone");
     void elements.statsPanel.offsetWidth;
     elements.statsPanel.classList.add("milestone");
@@ -864,7 +873,7 @@ function handleCorrect(customMessage) {
     speakCustom(msg);
     queueNextRound(1800);
   } else {
-    playSoundEffect("success");
+    playSoundEffect(pickRandom(["success", "success2", "success3"]));
     launchConfetti(28);
     showFeedback("success", customMessage || pickRandom(praiseLines));
     speakPraise();
@@ -878,6 +887,7 @@ function handleIncorrect(message) {
   state.streak = 0;
   persistProgress();
   updateStats();
+  updateStreakVisuals();
   playSoundEffect("fail");
   showFeedback("fail", message || "Try again!");
   queueNextRound(1200);
@@ -1345,6 +1355,21 @@ function playSoundEffect(effectName) {
       { delay: 0.30, frequency: 988,  endFrequency: 988,  duration: 0.24, type: "triangle", volume: 0.07 },
       { delay: 0.30, frequency: 523,  endFrequency: 523,  duration: 0.24, type: "sine",     volume: 0.07 },
     ],
+    success2: [
+      { delay: 0,    frequency: 440,  endFrequency: 440,  duration: 0.09, type: "sine",     volume: 0.10 },
+      { delay: 0.09, frequency: 554,  endFrequency: 554,  duration: 0.09, type: "sine",     volume: 0.11 },
+      { delay: 0.18, frequency: 659,  endFrequency: 659,  duration: 0.10, type: "sine",     volume: 0.11 },
+      { delay: 0.28, frequency: 880,  endFrequency: 880,  duration: 0.26, type: "sine",     volume: 0.13 },
+      { delay: 0.28, frequency: 554,  endFrequency: 554,  duration: 0.26, type: "triangle", volume: 0.07 },
+    ],
+    success3: [
+      { delay: 0,    frequency: 330,  endFrequency: 330,  duration: 0.10, type: "sine",     volume: 0.10 },
+      { delay: 0.08, frequency: 440,  endFrequency: 440,  duration: 0.10, type: "sine",     volume: 0.10 },
+      { delay: 0.16, frequency: 554,  endFrequency: 554,  duration: 0.10, type: "sine",     volume: 0.11 },
+      { delay: 0.24, frequency: 659,  endFrequency: 659,  duration: 0.10, type: "sine",     volume: 0.12 },
+      { delay: 0.34, frequency: 880,  endFrequency: 880,  duration: 0.26, type: "sine",     volume: 0.14 },
+      { delay: 0.34, frequency: 659,  endFrequency: 659,  duration: 0.26, type: "triangle", volume: 0.07 },
+    ],
     fail: [
       { delay: 0,    frequency: 350,  endFrequency: 260,  duration: 0.14, type: "sine",     volume: 0.07 },
       { delay: 0.15, frequency: 260,  endFrequency: 200,  duration: 0.18, type: "sine",     volume: 0.06 },
@@ -1520,6 +1545,80 @@ function speakCustom(text) {
 
   const utterance = new SpeechSynthesisUtterance(text);
   speakUtterance(utterance, "praise");
+}
+
+function autoReadPrompt() {
+  if (!state.settings.voicePraise || !canSpeak() || !state.currentRound) {
+    return;
+  }
+
+  setTimeout(() => {
+    if (!state.currentRound || !state.roundActive) {
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(state.currentRound.title);
+    speakUtterance(utterance, "prompt");
+  }, 350);
+}
+
+function createBackgroundParticles() {
+  const colors = [
+    "rgba(255,122,69,0.10)", "rgba(77,182,255,0.10)", "rgba(255,216,77,0.13)",
+    "rgba(124,224,163,0.10)", "rgba(255,91,110,0.08)", "rgba(192,132,252,0.08)",
+  ];
+
+  for (let i = 0; i < 20; i++) {
+    const particle = document.createElement("div");
+    const isStar = Math.random() > 0.6;
+    particle.className = `bg-particle${isStar ? " star" : ""}`;
+    const size = 8 + Math.random() * 36;
+    particle.style.width = `${size}px`;
+    particle.style.height = `${size}px`;
+    particle.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+    particle.style.left = `${Math.random() * 100}vw`;
+    particle.style.animationDuration = `${14 + Math.random() * 22}s`;
+    particle.style.animationDelay = `${-Math.random() * 25}s`;
+    document.body.appendChild(particle);
+  }
+}
+
+function animateSceneItems() {
+  const items = elements.choices.querySelectorAll(
+    ".scene-emoji-item, .mini-emoji-item, .emoji-choice-item, .story-item, .ten-cell, .ones-chip"
+  );
+
+  items.forEach((item, i) => {
+    item.classList.add("pop-item");
+    item.style.animationDelay = `${i * 0.04}s`;
+  });
+}
+
+function shakeGameScreen() {
+  const screen = elements.screens.game;
+  screen.classList.remove("game-shake");
+  void screen.offsetWidth;
+  screen.classList.add("game-shake");
+  setTimeout(() => screen.classList.remove("game-shake"), 500);
+}
+
+function updateStreakVisuals() {
+  const streakCard = elements.streak.closest(".stat-card");
+  const rocket = elements.heroRocket;
+
+  streakCard.classList.remove("streak-warm", "streak-hot", "streak-fire");
+  rocket.classList.remove("streak-mid", "streak-high", "streak-super");
+
+  if (state.streak >= 10) {
+    streakCard.classList.add("streak-fire");
+    rocket.classList.add("streak-super");
+  } else if (state.streak >= 5) {
+    streakCard.classList.add("streak-hot");
+    rocket.classList.add("streak-high");
+  } else if (state.streak >= 3) {
+    streakCard.classList.add("streak-warm");
+    rocket.classList.add("streak-mid");
+  }
 }
 
 function buildNearbyChoices(
