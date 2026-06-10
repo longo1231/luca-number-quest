@@ -50,6 +50,24 @@
             </article>
           </div>
 
+          <section class="journey-panel" aria-label="Rocket journey">
+            <div class="journey-now">
+              <span id="journey-planet-emoji" class="journey-emoji" aria-hidden="true">🌍</span>
+              <div class="journey-copy">
+                <span class="journey-label">You are at</span>
+                <strong id="journey-planet-name">Earth Base</strong>
+              </div>
+            </div>
+            <div class="journey-fuel">
+              <div class="fuel-bar"><div id="fuel-fill" class="fuel-fill"></div></div>
+              <span id="fuel-text" class="fuel-text">0 / 10 ⭐ to The Moon</span>
+            </div>
+            <div class="journey-next">
+              <span class="journey-label">Next stop</span>
+              <span id="journey-next-emoji" class="journey-next-emoji" aria-hidden="true">🌕</span>
+            </div>
+          </section>
+
           <section class="menu-panel">
             <button class="menu-button coral" data-mode="count">
               <span class="menu-emoji" aria-hidden="true">🧮</span>
@@ -93,6 +111,7 @@
           <div class="game-topbar">
             <button id="back-button" class="small-button" type="button">Home</button>
             <div class="mode-chip" id="mode-chip">Count It</div>
+            <div class="fuel-chip" id="fuel-chip">🚀 0/10</div>
             <div class="timer-chip off" id="timer-text">No timer</div>
           </div>
 
@@ -166,6 +185,15 @@
       <button id="parents-button" class="parents-button" type="button" aria-label="Open parent settings">
         Parents
       </button>
+
+      <div id="launch-overlay" class="launch-overlay hidden" aria-hidden="true">
+        <div class="launch-card">
+          <span class="launch-rocket" aria-hidden="true">🚀</span>
+          <h2 class="launch-title">BLAST OFF!</h2>
+          <p id="launch-message" class="launch-message">Welcome to The Moon!</p>
+          <span id="launch-planet" class="launch-planet" aria-hidden="true">🌕</span>
+        </div>
+      </div>
     </div>
 
     <script src="./app.js" defer></script>

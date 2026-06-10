@@ -8,10 +8,11 @@ The current version is tuned to Connecticut kindergarten number goals.
 
 ## What's included
 
-- Count It
+- Count It, including tap-to-count rounds where the child taps each object and the app counts aloud
 - Compare Numbers
-- Number Pairs
+- Number Pairs, with the child's name woven into the story problems
 - Teen Numbers
+- A rocket journey: every 10 stars blasts off to a new planet with its own color theme
 - Parent settings for child name, round length, voice praise, and silly sounds
 - Optional timed rounds, with the timer off by default for calmer practice
 - Saved progress on the device so score and skill progress survive reloads

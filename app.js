@@ -28,6 +28,23 @@ const modes = {
   },
 };
 
+const STARS_PER_PLANET = 10;
+
+const PLANETS = [
+  { name: "Earth Base", emoji: "🌍" },
+  { name: "The Moon", emoji: "🌕" },
+  { name: "Mars", emoji: "🔴" },
+  { name: "Star Cove", emoji: "⭐" },
+  { name: "Saturn Rings", emoji: "🪐" },
+  { name: "Ice Planet", emoji: "❄️" },
+  { name: "Volcano World", emoji: "🌋" },
+  { name: "Rainbow Nebula", emoji: "🌈" },
+  { name: "Robot Station", emoji: "🤖" },
+  { name: "Dino Planet", emoji: "🦕" },
+  { name: "Candy Comet", emoji: "🍭" },
+  { name: "Galaxy's Edge", emoji: "🌌" },
+];
+
 const savedProgress = loadProgress();
 
 const countItems = [
@@ -65,6 +82,12 @@ const praiseLines = [
   "Awesome job!",
   "Like a rocket! Correct!",
   "Magnificent thinking!",
+  "{name}, you're a superstar!",
+  "Go {name}, go!",
+  "Wow, {name}! Amazing!",
+  "{name} nails it again!",
+  "High five, {name}!",
+  "Super job, {name}!",
 ];
 
 const milestonePraise = [
@@ -73,6 +96,8 @@ const milestonePraise = [
   "You are a math superstar!",
   "Five in a row! Incredible!",
   "Woohoo! Five in a row!",
+  "{name} is unstoppable! Five in a row!",
+  "Five in a row, {name}! Wow!",
 ];
 
 const state = {
@@ -127,6 +152,15 @@ const elements = {
     settings: document.querySelector("#screen-settings"),
   },
   modeChip: document.querySelector("#mode-chip"),
+  fuelChip: document.querySelector("#fuel-chip"),
+  journeyEmoji: document.querySelector("#journey-planet-emoji"),
+  journeyName: document.querySelector("#journey-planet-name"),
+  journeyNextEmoji: document.querySelector("#journey-next-emoji"),
+  fuelFill: document.querySelector("#fuel-fill"),
+  fuelText: document.querySelector("#fuel-text"),
+  launchOverlay: document.querySelector("#launch-overlay"),
+  launchMessage: document.querySelector("#launch-message"),
+  launchPlanet: document.querySelector("#launch-planet"),
   timerText: document.querySelector("#timer-text"),
   timerBar: document.querySelector("#timer-bar"),
   timerFill: document.querySelector("#timer-fill"),
@@ -160,6 +194,8 @@ function init() {
   refreshHeader();
   updateStats();
   updateStreakVisuals();
+  applyPlanetTheme(currentPlanetIndex());
+  updateJourney();
   createBackgroundParticles();
   showScreen("home");
   registerServiceWorker();
@@ -247,12 +283,16 @@ function generateCountRound() {
   const profile = getCountProfile();
   const roll = Math.random();
 
-  if (profile.allowTens && roll < 0.18) {
+  if (profile.allowTens && roll < 0.15) {
     return generateCountByTensRound();
   }
 
-  if (profile.allowSequence && roll < 0.46) {
+  if (profile.allowSequence && roll < 0.4) {
     return generateCountOnRound(profile);
+  }
+
+  if (Math.random() < 0.5) {
+    return generateTapCountRound(profile);
   }
 
   return generateCountObjectsRound(profile);
@@ -464,6 +504,21 @@ function generateCountObjectsRound(profile) {
   };
 }
 
+function generateTapCountRound(profile) {
+  const item = pickRandom(countItems);
+  const target = randomInt(profile.minTarget, Math.min(profile.maxTarget, 14));
+
+  return {
+    type: "tap-count",
+    kicker: "Touch and count!",
+    title: `Tap and count the ${item.plural}!`,
+    subtitle: "Touch every one exactly one time.",
+    item,
+    target,
+    successMessage: `Yes! There are ${target} ${pluralize(item, target)}!`,
+  };
+}
+
 function generateCountOnRound(profile) {
   const start = randomInt(1, profile.sequenceMax - 1);
   const correct = start + 1;
@@ -661,6 +716,7 @@ function generateMakeTenRound(profile) {
 
 function generateStoryRound(profile) {
   const item = pickRandom(countItems);
+  const playerName = state.settings.playerName || defaultSettings.playerName;
   const useSubtraction = profile.allowSubtraction && Math.random() > 0.5;
 
   if (useSubtraction) {
@@ -672,7 +728,7 @@ function generateStoryRound(profile) {
     return {
       type: "scene-choice",
       kicker: "Take away to subtract.",
-      title: `${total} ${pluralize(item, total)}, ${takenAway} go away. How many are left?`,
+      title: `${playerName} has ${total} ${pluralize(item, total)}. ${takenAway} go away. How many are left?`,
       subtitle: "Look at what stays.",
       sceneClassName: "story-scene-card",
       sceneHtml: buildStorySceneHtml(item.emoji, total, takenAway, "subtract"),
@@ -696,7 +752,7 @@ function generateStoryRound(profile) {
   return {
     type: "scene-choice",
     kicker: "Put together to add.",
-    title: `${first} ${pluralize(item, first)} and ${second} more. How many now?`,
+    title: `${playerName} has ${first} ${pluralize(item, first)} and gets ${second} more. How many now?`,
     subtitle: "Count both groups together.",
     sceneClassName: "story-scene-card",
     sceneHtml: buildStorySceneHtml(item.emoji, first, second, "add"),
@@ -789,6 +845,11 @@ function renderRound(round) {
   updateReadPromptButton();
   elements.choices.innerHTML = "";
 
+  if (round.type === "tap-count") {
+    renderTapCountRound(round);
+    return;
+  }
+
   if (round.type === "choice") {
     elements.choices.className = `choices ${round.layoutClass || "answer-choice-grid"}`;
 
@@ -814,6 +875,66 @@ function renderRound(round) {
   });
 
   elements.choices.appendChild(answerGrid);
+}
+
+function renderTapCountRound(round) {
+  elements.choices.className = "choices scene-choice-layout";
+
+  const scene = document.createElement("div");
+  scene.className = "scene-card tap-count-card";
+
+  const counter = document.createElement("div");
+  counter.className = "tap-counter";
+  counter.textContent = "0";
+
+  const grid = document.createElement("div");
+  grid.className = "tap-grid";
+
+  let counted = 0;
+
+  for (let index = 0; index < round.target; index += 1) {
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "tap-item";
+    item.textContent = round.item.emoji;
+
+    item.addEventListener("click", () => {
+      if (!state.roundActive || item.classList.contains("counted")) {
+        return;
+      }
+
+      counted += 1;
+      item.classList.add("counted");
+
+      const badge = document.createElement("span");
+      badge.className = "tap-badge";
+      badge.textContent = String(counted);
+      item.appendChild(badge);
+
+      playCountTone(counted);
+      speakNumber(counted);
+
+      counter.textContent = String(counted);
+      counter.classList.remove("popping");
+      void counter.offsetWidth;
+      counter.classList.add("popping");
+
+      if (counted === round.target) {
+        counter.classList.add("complete");
+        window.setTimeout(() => {
+          if (state.roundActive) {
+            handleCorrect(round.successMessage);
+          }
+        }, 650);
+      }
+    });
+
+    grid.appendChild(item);
+  }
+
+  scene.appendChild(counter);
+  scene.appendChild(grid);
+  elements.choices.appendChild(scene);
 }
 
 function buildChoiceButton(choice, round) {
@@ -853,12 +974,19 @@ function createChoice({ correct, html, className = "" }) {
 function handleCorrect(customMessage) {
   recordModeResult(true);
   endRound();
+  const previousPlanet = currentPlanetIndex();
   state.score += 1;
   state.streak += 1;
   state.stars += 1;
   persistProgress();
   updateStats(true);
   updateStreakVisuals();
+  updateJourney();
+
+  if (currentPlanetIndex() > previousPlanet) {
+    showLaunchCelebration(currentPlanetIndex());
+    return;
+  }
 
   const isMilestone = state.streak > 0 && state.streak % 5 === 0;
 
@@ -868,17 +996,37 @@ function handleCorrect(customMessage) {
     elements.statsPanel.classList.remove("milestone");
     void elements.statsPanel.offsetWidth;
     elements.statsPanel.classList.add("milestone");
-    const msg = pickRandom(milestonePraise);
+    const msg = applyName(pickRandom(milestonePraise));
     showFeedback("success", msg);
     speakCustom(msg);
     queueNextRound(1800);
   } else {
     playSoundEffect(pickRandom(["success", "success2", "success3"]));
     launchConfetti(28);
-    showFeedback("success", customMessage || pickRandom(praiseLines));
+    showFeedback("success", applyName(customMessage || pickRandom(praiseLines)));
     speakPraise();
     queueNextRound(1000);
   }
+}
+
+function showLaunchCelebration(planetIndex) {
+  const planet = getPlanet(planetIndex);
+
+  applyPlanetTheme(planetIndex);
+  updateJourney();
+  elements.launchMessage.textContent = `Welcome to ${planet.name}!`;
+  elements.launchPlanet.textContent = planet.emoji;
+  elements.launchOverlay.classList.remove("hidden");
+  playSoundEffect("milestone");
+  launchConfetti(90);
+  showFeedback("success", `🚀 Blast off to ${planet.name}!`);
+  speakCustom(`Blast off! Welcome to ${planet.name}!`);
+
+  window.setTimeout(() => {
+    elements.launchOverlay.classList.add("hidden");
+  }, 2700);
+
+  queueNextRound(2900);
 }
 
 function handleIncorrect(message) {
@@ -1087,6 +1235,9 @@ function resetProgress() {
   updateReadPromptButton();
   persistProgress();
   updateStats();
+  updateStreakVisuals();
+  applyPlanetTheme(currentPlanetIndex());
+  updateJourney();
   clearFeedback();
   closeSettings();
 }
@@ -1211,8 +1362,22 @@ function speakPraise() {
     return;
   }
 
-  const utterance = new SpeechSynthesisUtterance(pickRandom(praiseLines));
+  const utterance = new SpeechSynthesisUtterance(applyName(pickRandom(praiseLines)));
   speakUtterance(utterance, "praise");
+}
+
+function speakNumber(value) {
+  if (!state.settings.voicePraise || !canSpeak()) {
+    return;
+  }
+
+  const utterance = new SpeechSynthesisUtterance(String(value));
+  speakUtterance(utterance, "count");
+}
+
+function applyName(text) {
+  const name = state.settings.playerName || defaultSettings.playerName;
+  return text.replaceAll("{name}", name);
 }
 
 function readCurrentPrompt() {
@@ -1312,8 +1477,16 @@ function speakUtterance(utterance, kind = "prompt") {
     utterance.lang = "en-US";
   }
 
-  utterance.rate = kind === "praise" ? 1.12 : 0.9;
-  utterance.pitch = kind === "praise" ? 1.5 : 1.05;
+  if (kind === "praise") {
+    utterance.rate = 1.12;
+    utterance.pitch = 1.5;
+  } else if (kind === "count") {
+    utterance.rate = 1.15;
+    utterance.pitch = 1.3;
+  } else {
+    utterance.rate = 0.9;
+    utterance.pitch = 1.05;
+  }
 
   stopSpeech();
   window.speechSynthesis.speak(utterance);
@@ -1399,6 +1572,29 @@ function playSoundEffect(effectName) {
       ...note,
       startAt: startAt + note.delay,
     });
+  });
+}
+
+function playCountTone(step) {
+  if (!state.settings.soundEffects) {
+    return;
+  }
+
+  const audioContext = getAudioContext();
+  if (!audioContext) {
+    return;
+  }
+
+  // Each tap climbs one semitone so counting sounds like a rising scale.
+  const frequency = 440 * Math.pow(2, (step - 1) / 12);
+
+  scheduleTone(audioContext, {
+    frequency,
+    endFrequency: frequency * 1.18,
+    duration: 0.12,
+    type: "triangle",
+    volume: 0.1,
+    startAt: audioContext.currentTime + 0.01,
   });
 }
 
@@ -1585,7 +1781,7 @@ function createBackgroundParticles() {
 
 function animateSceneItems() {
   const items = elements.choices.querySelectorAll(
-    ".scene-emoji-item, .mini-emoji-item, .emoji-choice-item, .story-item, .ten-cell, .ones-chip"
+    ".scene-emoji-item, .mini-emoji-item, .emoji-choice-item, .story-item, .ten-cell, .ones-chip, .tap-item"
   );
 
   items.forEach((item, i) => {
@@ -1600,6 +1796,38 @@ function shakeGameScreen() {
   void screen.offsetWidth;
   screen.classList.add("game-shake");
   setTimeout(() => screen.classList.remove("game-shake"), 500);
+}
+
+function currentPlanetIndex() {
+  return Math.floor(state.stars / STARS_PER_PLANET);
+}
+
+function getPlanet(index) {
+  return PLANETS[index % PLANETS.length];
+}
+
+function applyPlanetTheme(index) {
+  const themeIndex = index % PLANETS.length;
+
+  Array.from(document.body.classList)
+    .filter((className) => className.startsWith("planet-theme-"))
+    .forEach((className) => document.body.classList.remove(className));
+
+  document.body.classList.add(`planet-theme-${themeIndex}`);
+}
+
+function updateJourney() {
+  const index = currentPlanetIndex();
+  const planet = getPlanet(index);
+  const nextPlanet = getPlanet(index + 1);
+  const starsIntoTrip = state.stars % STARS_PER_PLANET;
+
+  elements.journeyEmoji.textContent = planet.emoji;
+  elements.journeyName.textContent = planet.name;
+  elements.journeyNextEmoji.textContent = nextPlanet.emoji;
+  elements.fuelFill.style.width = `${(starsIntoTrip / STARS_PER_PLANET) * 100}%`;
+  elements.fuelText.textContent = `${starsIntoTrip} / ${STARS_PER_PLANET} ⭐ to ${nextPlanet.name}`;
+  elements.fuelChip.textContent = `🚀 ${starsIntoTrip}/${STARS_PER_PLANET}`;
 }
 
 function updateStreakVisuals() {
