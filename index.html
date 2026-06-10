@@ -142,12 +142,15 @@
           </div>
 
           <section class="prompt-panel">
-            <p id="prompt-kicker" class="prompt-kicker">Ready?</p>
-            <h2 id="prompt-title">Pick a skill to start.</h2>
-            <p id="prompt-subtitle" class="prompt-subtitle">Short rounds and lots of repetition help little learners.</p>
-            <button id="read-prompt" class="small-button read-prompt-button" type="button">
-              Read It
-            </button>
+            <div class="prompt-copy">
+              <p id="prompt-kicker" class="prompt-kicker">Ready?</p>
+              <h2 id="prompt-title">Pick a skill to start.</h2>
+              <p id="prompt-subtitle" class="prompt-subtitle">Short rounds and lots of repetition help little learners.</p>
+              <button id="read-prompt" class="small-button read-prompt-button" type="button">
+                Read It
+              </button>
+            </div>
+            <button id="mascot" class="mascot" type="button" data-state="idle" aria-label="Your buddy"></button>
           </section>
 
           <section id="choices" class="choices" aria-live="polite"></section>
@@ -202,6 +205,11 @@
               <input id="sound-toggle" type="checkbox" />
               <span>Silly sounds</span>
             </label>
+
+            <div class="skill-report">
+              <h3>Skill Report</h3>
+              <div id="skill-report-grid" class="skill-report-grid"></div>
+            </div>
 
             <div class="settings-actions">
               <button id="save-settings" class="primary-button" type="button">Save Settings</button>

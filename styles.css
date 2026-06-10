@@ -584,6 +584,80 @@ main {
   background: linear-gradient(90deg, var(--mint), #5dc6ff);
 }
 
+/* ── Mascot ── */
+
+.prompt-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 118px;
+  gap: 14px;
+  align-items: center;
+}
+
+.mascot {
+  width: 118px;
+  height: 118px;
+  padding: 0;
+  background: none;
+  border: 0;
+  box-shadow: none;
+}
+
+.mascot svg {
+  width: 100%;
+  height: 100%;
+  animation: bob 2.4s ease-in-out infinite;
+}
+
+.mascot .m-eyes {
+  animation: mascotBlink 4.5s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.mascot .m-star-eyes,
+.mascot .m-mouth-open,
+.mascot .m-mouth-o {
+  display: none;
+}
+
+.mascot[data-state="happy"] .m-mouth-smile {
+  display: none;
+}
+
+.mascot[data-state="happy"] .m-mouth-open {
+  display: block;
+}
+
+.mascot[data-state="happy"] svg {
+  animation: mascotJump 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.mascot[data-state="encourage"] .m-mouth-smile {
+  display: none;
+}
+
+.mascot[data-state="encourage"] .m-mouth-o {
+  display: block;
+}
+
+.mascot[data-state="encourage"] svg {
+  animation: mascotWobble 0.6s ease-in-out;
+}
+
+.mascot[data-state="celebrate"] .m-eyes,
+.mascot[data-state="celebrate"] .m-mouth-smile {
+  display: none;
+}
+
+.mascot[data-state="celebrate"] .m-star-eyes,
+.mascot[data-state="celebrate"] .m-mouth-open {
+  display: block;
+}
+
+.mascot[data-state="celebrate"] svg {
+  animation: mascotParty 0.45s ease-in-out infinite;
+}
+
 /* ── Prompt ── */
 
 .prompt-kicker {
@@ -1109,6 +1183,15 @@ main {
   color: #b72645;
 }
 
+.feedback.retry {
+  color: #b97d12;
+}
+
+.choice-button.used {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
 /* ── Settings ── */
 
 .settings-card {
@@ -1162,6 +1245,96 @@ main {
 .settings-actions {
   margin-top: 20px;
   flex-wrap: wrap;
+}
+
+/* ── Skill report ── */
+
+.skill-report {
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 2px solid rgba(145, 85, 33, 0.12);
+}
+
+.skill-report h3 {
+  margin: 0 0 12px;
+}
+
+.skill-report-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.skill-row {
+  display: grid;
+  gap: 6px;
+}
+
+.skill-row-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.skill-name {
+  font-weight: 800;
+}
+
+.skill-status {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.skill-status.starting {
+  background: rgba(145, 85, 33, 0.1);
+  color: #6f4b29;
+}
+
+.skill-status.strong {
+  background: rgba(124, 224, 163, 0.35);
+  color: #1e8a49;
+}
+
+.skill-status.practicing {
+  background: rgba(77, 182, 255, 0.22);
+  color: #1c6ea8;
+}
+
+.skill-status.helping {
+  background: rgba(255, 122, 69, 0.2);
+  color: #b04a17;
+}
+
+.skill-bar {
+  height: 12px;
+  border-radius: 999px;
+  background: rgba(145, 85, 33, 0.1);
+  overflow: hidden;
+}
+
+.skill-bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: rgba(145, 85, 33, 0.25);
+}
+
+.skill-bar-fill.strong {
+  background: linear-gradient(90deg, var(--mint), #34d399);
+}
+
+.skill-bar-fill.practicing {
+  background: linear-gradient(90deg, #8fd0ff, var(--sky));
+}
+
+.skill-bar-fill.helping {
+  background: linear-gradient(90deg, #ffb38a, var(--coral));
+}
+
+.skill-detail {
+  font-size: 0.88rem;
+  color: #7f5631;
 }
 
 .primary-button,
@@ -1362,6 +1535,29 @@ body.planet-theme-11 { background-image: linear-gradient(-45deg, #ece0ff, #e0d4f
   75%      { box-shadow: 0 0 0 8px rgba(77, 182, 255, 0.5), var(--shadow); }
 }
 
+@keyframes mascotBlink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  95%           { transform: scaleY(0.12); }
+}
+
+@keyframes mascotJump {
+  0%   { transform: translateY(0) scale(1); }
+  40%  { transform: translateY(-16px) scale(1.08); }
+  70%  { transform: translateY(0) scale(0.96); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+@keyframes mascotWobble {
+  0%, 100% { transform: rotate(0deg); }
+  25%      { transform: rotate(-7deg); }
+  60%      { transform: rotate(6deg); }
+}
+
+@keyframes mascotParty {
+  0%, 100% { transform: translateY(0) rotate(-4deg) scale(1.04); }
+  50%      { transform: translateY(-10px) rotate(4deg) scale(1.1); }
+}
+
 @keyframes fireGlow {
   0%   { box-shadow: 0 0 20px rgba(255, 91, 110, 0.4), var(--shadow); }
   100% { box-shadow: 0 0 36px rgba(255, 122, 69, 0.55), 0 0 60px rgba(255, 216, 77, 0.25), var(--shadow); }
@@ -1449,6 +1645,15 @@ body.planet-theme-11 { background-image: linear-gradient(-45deg, #ece0ff, #e0d4f
 
   .sticker-grid {
     grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+  }
+
+  .prompt-panel {
+    grid-template-columns: minmax(0, 1fr) 84px;
+  }
+
+  .mascot {
+    width: 84px;
+    height: 84px;
   }
 
   .two-choice-grid,

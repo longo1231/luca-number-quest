@@ -7,6 +7,7 @@ const defaultSettings = {
   timerEnabled: false,
   voicePraise: true,
   soundEffects: true,
+  mascot: "robot",
 };
 
 const modes = {
@@ -90,6 +91,44 @@ const STICKERS = [
   { id: "circus", emoji: "🎪", name: "Circus Tent" },
 ];
 
+const MASCOT_ORDER = ["robot", "dino", "cat"];
+
+const MASCOTS = {
+  robot: {
+    name: "Beep",
+    body: `
+      <line x1="60" y1="18" x2="60" y2="30" stroke="#4d9fd6" stroke-width="3"/>
+      <circle class="m-antenna" cx="60" cy="14" r="5" fill="#ffd84d" stroke="#d99e06" stroke-width="2"/>
+      <rect x="22" y="30" width="76" height="72" rx="20" fill="#aee0ff" stroke="#4d9fd6" stroke-width="3"/>
+      <rect x="34" y="102" width="14" height="8" rx="4" fill="#4d9fd6"/>
+      <rect x="72" y="102" width="14" height="8" rx="4" fill="#4d9fd6"/>
+    `,
+  },
+  dino: {
+    name: "Rex",
+    body: `
+      <path d="M40 36 L46 22 L52 36 Z" fill="#4caf6d"/>
+      <path d="M54 32 L60 17 L66 32 Z" fill="#4caf6d"/>
+      <path d="M68 36 L74 22 L80 36 Z" fill="#4caf6d"/>
+      <ellipse cx="60" cy="70" rx="40" ry="38" fill="#9fe3a9" stroke="#4caf6d" stroke-width="3"/>
+      <ellipse cx="60" cy="92" rx="20" ry="13" fill="#d6f5d9"/>
+    `,
+  },
+  cat: {
+    name: "Whiskers",
+    body: `
+      <path d="M30 44 L36 16 L54 34 Z" fill="#ffd9a8" stroke="#e8a857" stroke-width="3" stroke-linejoin="round"/>
+      <path d="M90 44 L84 16 L66 34 Z" fill="#ffd9a8" stroke="#e8a857" stroke-width="3" stroke-linejoin="round"/>
+      <circle cx="60" cy="68" r="40" fill="#ffd9a8" stroke="#e8a857" stroke-width="3"/>
+      <line x1="14" y1="66" x2="34" y2="69" stroke="#e8a857" stroke-width="2"/>
+      <line x1="14" y1="78" x2="34" y2="75" stroke="#e8a857" stroke-width="2"/>
+      <line x1="106" y1="66" x2="86" y2="69" stroke="#e8a857" stroke-width="2"/>
+      <line x1="106" y1="78" x2="86" y2="75" stroke="#e8a857" stroke-width="2"/>
+      <path d="M56 68 L64 68 L60 73 Z" fill="#e8a857"/>
+    `,
+  },
+};
+
 const savedProgress = loadProgress();
 
 const countItems = [
@@ -135,6 +174,14 @@ const praiseLines = [
   "Super job, {name}!",
 ];
 
+const retryLines = [
+  "Hmm, not that one. Try again!",
+  "So close! Look one more time.",
+  "Almost, {name}! Try again.",
+  "Try once more. You can do it!",
+  "Not quite. Take another look!",
+];
+
 const milestonePraise = [
   "Five in a row! You are amazing!",
   "Unstoppable! Five correct!",
@@ -153,6 +200,8 @@ const state = {
   stars: savedProgress.stars,
   stickers: savedProgress.stickers,
   roundActive: false,
+  retryUsed: false,
+  mascotTimeoutId: null,
   timerId: null,
   timerDeadline: 0,
   nextRoundTimeoutId: null,
@@ -216,6 +265,7 @@ const elements = {
   timerText: document.querySelector("#timer-text"),
   timerBar: document.querySelector("#timer-bar"),
   timerFill: document.querySelector("#timer-fill"),
+  mascot: document.querySelector("#mascot"),
   promptKicker: document.querySelector("#prompt-kicker"),
   promptTitle: document.querySelector("#prompt-title"),
   promptSubtitle: document.querySelector("#prompt-subtitle"),
@@ -232,6 +282,7 @@ const elements = {
   soundToggle: document.querySelector("#sound-toggle"),
   saveSettings: document.querySelector("#save-settings"),
   resetProgress: document.querySelector("#reset-progress"),
+  skillReportGrid: document.querySelector("#skill-report-grid"),
 };
 
 init();
@@ -248,6 +299,7 @@ function init() {
   updateStreakVisuals();
   applyPlanetTheme(currentPlanetIndex());
   updateJourney();
+  renderMascot();
   backfillStickers();
   updateStickerCount();
   createBackgroundParticles();
@@ -264,6 +316,7 @@ function bindEvents() {
   elements.closeSettings.addEventListener("click", closeSettings);
   elements.stickersButton.addEventListener("click", openStickers);
   elements.closeStickers.addEventListener("click", closeStickers);
+  elements.mascot.addEventListener("click", cycleMascot);
   elements.backButton.addEventListener("click", goHome);
   elements.readPrompt.addEventListener("click", readCurrentPrompt);
   elements.timerToggle.addEventListener("change", syncTimerSettingsState);
@@ -310,6 +363,8 @@ function nextRound() {
   clearTimer();
   stopSpeech();
   clearFeedback();
+  state.retryUsed = false;
+  setMascotState("idle");
 
   const round = generateRound(state.mode);
   state.currentRound = round;
@@ -1329,6 +1384,19 @@ function buildChoiceButton(choice, round) {
 
     button.classList.add("wrong-flash");
     shakeGameScreen();
+
+    if (!state.retryUsed) {
+      state.retryUsed = true;
+      button.disabled = true;
+      button.classList.add("used");
+      playSoundEffect("retry");
+      const line = applyName(pickRandom(retryLines));
+      showFeedback("retry", line);
+      speakCustom(line);
+      setMascotState("encourage", 2200);
+      return;
+    }
+
     handleIncorrect(round.failureMessage);
   });
 
@@ -1340,7 +1408,8 @@ function createChoice({ correct, html, className = "" }) {
 }
 
 function handleCorrect(customMessage) {
-  recordModeResult(true);
+  const usedRetry = state.retryUsed;
+  recordModeResult(true, usedRetry);
   endRound();
   const previousPlanet = currentPlanetIndex();
   state.score += 1;
@@ -1352,6 +1421,7 @@ function handleCorrect(customMessage) {
   updateJourney();
 
   if (currentPlanetIndex() > previousPlanet) {
+    setMascotState("celebrate", 2800);
     showLaunchCelebration(currentPlanetIndex());
     return;
   }
@@ -1359,6 +1429,7 @@ function handleCorrect(customMessage) {
   const isMilestone = state.streak > 0 && state.streak % 5 === 0;
 
   if (isMilestone) {
+    setMascotState("celebrate", 1800);
     playSoundEffect("milestone");
     launchConfetti(70);
     elements.statsPanel.classList.remove("milestone");
@@ -1369,6 +1440,7 @@ function handleCorrect(customMessage) {
     speakCustom(msg);
     queueNextRound(1800);
   } else {
+    setMascotState("happy", 1000);
     playSoundEffect(pickRandom(["success", "success2", "success3"]));
     launchConfetti(28);
     showFeedback("success", applyName(customMessage || pickRandom(praiseLines)));
@@ -1406,6 +1478,7 @@ function handleIncorrect(message) {
   persistProgress();
   updateStats();
   updateStreakVisuals();
+  setMascotState("encourage", 1400);
   playSoundEffect("fail");
   showFeedback("fail", message || "Try again!");
   queueNextRound(1200);
@@ -1517,7 +1590,73 @@ function openSettings() {
   stopSpeech();
   stopBackgroundMusic();
   populateSettingsForm();
+  renderSkillReport();
   showScreen("settings");
+}
+
+function renderSkillReport() {
+  const grid = elements.skillReportGrid;
+  grid.innerHTML = "";
+
+  Object.entries(modes).forEach(([modeKey, mode]) => {
+    const stats = state.modeStats[modeKey];
+    const attempts = stats.wins + stats.misses;
+    const accuracy = attempts ? stats.wins / attempts : 0;
+
+    let status = "Just starting";
+    let statusClass = "starting";
+    if (attempts >= 5) {
+      if (accuracy >= 0.85) {
+        status = "Strong";
+        statusClass = "strong";
+      } else if (accuracy >= 0.6) {
+        status = "Practicing";
+        statusClass = "practicing";
+      } else {
+        status = "Needs help";
+        statusClass = "helping";
+      }
+    }
+
+    // Write It rounds cannot be answered wrong, so a difficulty tier
+    // would be meaningless there.
+    const tierText =
+      modeKey === "write" ? "" : ` · difficulty ${getModeTier(modeKey)} of 3`;
+    const detail = attempts
+      ? `${stats.wins} correct · ${stats.misses} missed${tierText}`
+      : "No rounds played yet";
+
+    const row = document.createElement("div");
+    row.className = "skill-row";
+    row.innerHTML = `
+      <div class="skill-row-head">
+        <span class="skill-name">${mode.label}</span>
+        <span class="skill-status ${statusClass}">${status}</span>
+      </div>
+      <div class="skill-bar">
+        <div class="skill-bar-fill ${statusClass}" style="width: ${Math.round(accuracy * 100)}%"></div>
+      </div>
+      <span class="skill-detail">${detail}</span>
+    `;
+    grid.appendChild(row);
+  });
+}
+
+function getModeTier(modeKey) {
+  // Mirrors the tier rules in the get*Profile functions.
+  const stats = state.modeStats[modeKey];
+  const attempts = stats.wins + stats.misses;
+  const accuracy = attempts ? stats.wins / attempts : 1;
+
+  if (stats.wins < 4 || accuracy < 0.6) {
+    return 1;
+  }
+
+  if (stats.streak >= 4 || accuracy > 0.82) {
+    return 3;
+  }
+
+  return 2;
 }
 
 function closeSettings() {
@@ -1540,6 +1679,7 @@ function saveSettings() {
     timerEnabled: elements.timerToggle.checked,
     voicePraise: elements.voiceToggle.checked,
     soundEffects: elements.soundToggle.checked,
+    mascot: state.settings.mascot,
   };
 
   persistSettings();
@@ -1614,7 +1754,7 @@ function resetProgress() {
   closeSettings();
 }
 
-function recordModeResult(didWin) {
+function recordModeResult(didWin, usedRetry = false) {
   if (!state.mode) {
     return;
   }
@@ -1626,7 +1766,8 @@ function recordModeResult(didWin) {
 
   if (didWin) {
     stats.wins += 1;
-    stats.streak += 1;
+    // A win that needed a retry should not push difficulty up.
+    stats.streak = usedRetry ? 0 : stats.streak + 1;
     return;
   }
 
@@ -1653,6 +1794,9 @@ function loadSettings() {
       timerEnabled: Boolean(savedSettings.timerEnabled),
       voicePraise: Boolean(savedSettings.voicePraise),
       soundEffects: Boolean(savedSettings.soundEffects),
+      mascot: MASCOT_ORDER.includes(savedSettings.mascot)
+        ? savedSettings.mascot
+        : defaultSettings.mascot,
     };
   } catch {
     return { ...defaultSettings };
@@ -1933,6 +2077,10 @@ function playSoundEffect(effectName) {
       { delay: 0,    frequency: 350,  endFrequency: 260,  duration: 0.14, type: "sine",     volume: 0.07 },
       { delay: 0.15, frequency: 260,  endFrequency: 200,  duration: 0.18, type: "sine",     volume: 0.06 },
     ],
+    retry: [
+      { delay: 0,    frequency: 330,  endFrequency: 330,  duration: 0.12, type: "sine",     volume: 0.07 },
+      { delay: 0.13, frequency: 415,  endFrequency: 415,  duration: 0.16, type: "sine",     volume: 0.08 },
+    ],
     milestone: [
       { delay: 0,    frequency: 392,  endFrequency: 392,  duration: 0.10, type: "sine",     volume: 0.12 },
       { delay: 0.10, frequency: 523,  endFrequency: 523,  duration: 0.10, type: "sine",     volume: 0.12 },
@@ -2182,6 +2330,60 @@ function shakeGameScreen() {
   void screen.offsetWidth;
   screen.classList.add("game-shake");
   setTimeout(() => screen.classList.remove("game-shake"), 500);
+}
+
+function buildMascotSvg(key) {
+  const face = `
+    <g class="m-eyes">
+      <circle cx="45" cy="58" r="6.5" fill="#2b2018"/>
+      <circle cx="75" cy="58" r="6.5" fill="#2b2018"/>
+      <circle cx="47" cy="56" r="2.2" fill="#fff"/>
+      <circle cx="77" cy="56" r="2.2" fill="#fff"/>
+    </g>
+    <g class="m-star-eyes">
+      <text x="45" y="65" text-anchor="middle" font-size="19">⭐</text>
+      <text x="75" y="65" text-anchor="middle" font-size="19">⭐</text>
+    </g>
+    <path class="m-mouth-smile" d="M48 78 Q60 88 72 78" fill="none" stroke="#2b2018" stroke-width="3.5" stroke-linecap="round"/>
+    <ellipse class="m-mouth-open" cx="60" cy="83" rx="10" ry="8" fill="#7a3b2e"/>
+    <circle class="m-mouth-o" cx="60" cy="83" r="5.5" fill="#7a3b2e"/>
+  `;
+
+  return `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${MASCOTS[key].body}${face}</svg>`;
+}
+
+function renderMascot() {
+  const key = state.settings.mascot;
+  elements.mascot.innerHTML = buildMascotSvg(key);
+  elements.mascot.setAttribute("aria-label", `Your buddy ${MASCOTS[key].name}. Tap to change.`);
+}
+
+function cycleMascot() {
+  const currentIndex = MASCOT_ORDER.indexOf(state.settings.mascot);
+  const nextKey = MASCOT_ORDER[(currentIndex + 1) % MASCOT_ORDER.length];
+
+  state.settings.mascot = nextKey;
+  persistSettings();
+  renderMascot();
+  playSoundEffect("tap");
+  setMascotState("happy", 1100);
+  speakCustom(`Hi! I'm ${MASCOTS[nextKey].name}!`);
+}
+
+function setMascotState(stateName, duration = 0) {
+  if (state.mascotTimeoutId) {
+    window.clearTimeout(state.mascotTimeoutId);
+    state.mascotTimeoutId = null;
+  }
+
+  elements.mascot.dataset.state = stateName;
+
+  if (duration > 0) {
+    state.mascotTimeoutId = window.setTimeout(() => {
+      state.mascotTimeoutId = null;
+      elements.mascot.dataset.state = "idle";
+    }, duration);
+  }
 }
 
 function awardSticker() {

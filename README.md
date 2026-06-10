@@ -16,6 +16,9 @@ The current version is tuned to Connecticut kindergarten number goals.
 - Write It: finger-tracing numerals on a canvas with live progress feedback
 - A rocket journey: every 10 stars blasts off to a new planet with its own color theme
 - A sticker book: each planet landing awards a collectible sticker (34 to find)
+- A tappable buddy mascot (robot, dino, or cat) that reacts to answers
+- One gentle retry before the answer is revealed on a wrong tap
+- A parent Skill Report in settings: per-skill accuracy, status, and current difficulty tier
 - Parent settings for child name, round length, voice praise, and silly sounds
 - Optional timed rounds, with the timer off by default for calmer practice
 - Saved progress on the device so score and skill progress survive reloads
