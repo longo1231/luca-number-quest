@@ -12,7 +12,10 @@ The current version is tuned to Connecticut kindergarten number goals.
 - Compare Numbers
 - Number Pairs, with the child's name woven into the story problems
 - Teen Numbers
+- Big Numbers: hundred-chart mystery cells, decade crossings, and missing-number patterns up to 100
+- Write It: finger-tracing numerals on a canvas with live progress feedback
 - A rocket journey: every 10 stars blasts off to a new planet with its own color theme
+- A sticker book: each planet landing awards a collectible sticker (34 to find)
 - Parent settings for child name, round length, voice praise, and silly sounds
 - Optional timed rounds, with the timer off by default for calmer practice
 - Saved progress on the device so score and skill progress survive reloads

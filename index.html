@@ -100,10 +100,32 @@
                 <small>Build 11 to 19 with 10 and ones</small>
               </span>
             </button>
+
+            <button class="menu-button berry" data-mode="bignum">
+              <span class="menu-emoji" aria-hidden="true">💯</span>
+              <span class="menu-text">
+                <strong>Big Numbers</strong>
+                <small>Explore the hundred chart</small>
+              </span>
+            </button>
+
+            <button class="menu-button lavender" data-mode="write">
+              <span class="menu-emoji" aria-hidden="true">✏️</span>
+              <span class="menu-text">
+                <strong>Write It</strong>
+                <small>Trace numbers with your finger</small>
+              </span>
+            </button>
           </section>
 
+          <button id="stickers-button" class="stickers-button" type="button">
+            <span class="stickers-button-emoji" aria-hidden="true">📒</span>
+            <span class="stickers-button-text">My Sticker Book</span>
+            <span id="sticker-count" class="sticker-count">0 / 34</span>
+          </button>
+
           <section class="tip-panel" aria-label="Parent tip">
-            <p>This build is tuned to kindergarten number goals: counting, comparing, number pairs, and teen numbers.</p>
+            <p>Tuned to kindergarten number goals: counting, comparing, number pairs, teen numbers, the hundred chart, and writing numerals.</p>
           </section>
         </section>
 
@@ -131,6 +153,17 @@
           <section id="choices" class="choices" aria-live="polite"></section>
 
           <p id="feedback" class="feedback" aria-live="polite"></p>
+        </section>
+
+        <section id="screen-stickers" class="screen" aria-label="Sticker book">
+          <div class="settings-card sticker-card">
+            <div class="settings-head">
+              <h2>📒 Sticker Book</h2>
+              <button id="close-stickers" class="small-button" type="button">Done</button>
+            </div>
+            <p class="sticker-hint">Blast off to a new planet to find a new sticker!</p>
+            <div id="sticker-grid" class="sticker-grid"></div>
+          </div>
         </section>
 
         <section id="screen-settings" class="screen" aria-label="Parent settings">
@@ -192,6 +225,7 @@
           <h2 class="launch-title">BLAST OFF!</h2>
           <p id="launch-message" class="launch-message">Welcome to The Moon!</p>
           <span id="launch-planet" class="launch-planet" aria-hidden="true">🌕</span>
+          <p id="launch-sticker" class="launch-sticker"></p>
         </div>
       </div>
     </div>

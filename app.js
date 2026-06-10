@@ -26,6 +26,14 @@ const modes = {
     label: "Teen Numbers",
     kicker: "Ten and some more ones.",
   },
+  bignum: {
+    label: "Big Numbers",
+    kicker: "Numbers go past 20!",
+  },
+  write: {
+    label: "Write It",
+    kicker: "Use your finger!",
+  },
 };
 
 const STARS_PER_PLANET = 10;
@@ -43,6 +51,43 @@ const PLANETS = [
   { name: "Dino Planet", emoji: "🦕" },
   { name: "Candy Comet", emoji: "🍭" },
   { name: "Galaxy's Edge", emoji: "🌌" },
+];
+
+const STICKERS = [
+  { id: "rocket", emoji: "🚀", name: "Rocket" },
+  { id: "ufo", emoji: "🛸", name: "UFO" },
+  { id: "alien", emoji: "👽", name: "Alien" },
+  { id: "star", emoji: "🌟", name: "Gold Star" },
+  { id: "comet", emoji: "☄️", name: "Comet" },
+  { id: "astronaut", emoji: "👩‍🚀", name: "Astronaut" },
+  { id: "moon", emoji: "🌙", name: "Moon" },
+  { id: "telescope", emoji: "🔭", name: "Telescope" },
+  { id: "trex", emoji: "🦖", name: "T-Rex" },
+  { id: "bronto", emoji: "🦕", name: "Brontosaurus" },
+  { id: "dragon", emoji: "🐉", name: "Dragon" },
+  { id: "egg", emoji: "🥚", name: "Dino Egg" },
+  { id: "volcano", emoji: "🌋", name: "Volcano" },
+  { id: "bone", emoji: "🦴", name: "Dino Bone" },
+  { id: "lion", emoji: "🦁", name: "Lion" },
+  { id: "panda", emoji: "🐼", name: "Panda" },
+  { id: "fox", emoji: "🦊", name: "Fox" },
+  { id: "octopus", emoji: "🐙", name: "Octopus" },
+  { id: "unicorn", emoji: "🦄", name: "Unicorn" },
+  { id: "whale", emoji: "🐳", name: "Whale" },
+  { id: "butterfly", emoji: "🦋", name: "Butterfly" },
+  { id: "turtle", emoji: "🐢", name: "Turtle" },
+  { id: "icecream", emoji: "🍦", name: "Ice Cream" },
+  { id: "donut", emoji: "🍩", name: "Donut" },
+  { id: "cupcake", emoji: "🧁", name: "Cupcake" },
+  { id: "strawberry", emoji: "🍓", name: "Strawberry" },
+  { id: "watermelon", emoji: "🍉", name: "Watermelon" },
+  { id: "cookie", emoji: "🍪", name: "Cookie" },
+  { id: "soccer", emoji: "⚽", name: "Soccer Ball" },
+  { id: "balloon", emoji: "🎈", name: "Balloon" },
+  { id: "art", emoji: "🎨", name: "Paint Set" },
+  { id: "guitar", emoji: "🎸", name: "Guitar" },
+  { id: "trophy", emoji: "🏆", name: "Trophy" },
+  { id: "circus", emoji: "🎪", name: "Circus Tent" },
 ];
 
 const savedProgress = loadProgress();
@@ -106,6 +151,7 @@ const state = {
   score: savedProgress.score,
   streak: savedProgress.streak,
   stars: savedProgress.stars,
+  stickers: savedProgress.stickers,
   roundActive: false,
   timerId: null,
   timerDeadline: 0,
@@ -150,7 +196,13 @@ const elements = {
     home: document.querySelector("#screen-home"),
     game: document.querySelector("#screen-game"),
     settings: document.querySelector("#screen-settings"),
+    stickers: document.querySelector("#screen-stickers"),
   },
+  stickersButton: document.querySelector("#stickers-button"),
+  stickerCount: document.querySelector("#sticker-count"),
+  stickerGrid: document.querySelector("#sticker-grid"),
+  closeStickers: document.querySelector("#close-stickers"),
+  launchSticker: document.querySelector("#launch-sticker"),
   modeChip: document.querySelector("#mode-chip"),
   fuelChip: document.querySelector("#fuel-chip"),
   journeyEmoji: document.querySelector("#journey-planet-emoji"),
@@ -196,6 +248,8 @@ function init() {
   updateStreakVisuals();
   applyPlanetTheme(currentPlanetIndex());
   updateJourney();
+  backfillStickers();
+  updateStickerCount();
   createBackgroundParticles();
   showScreen("home");
   registerServiceWorker();
@@ -208,6 +262,8 @@ function bindEvents() {
 
   elements.parentsButton.addEventListener("click", openSettings);
   elements.closeSettings.addEventListener("click", closeSettings);
+  elements.stickersButton.addEventListener("click", openStickers);
+  elements.closeStickers.addEventListener("click", closeStickers);
   elements.backButton.addEventListener("click", goHome);
   elements.readPrompt.addEventListener("click", readCurrentPrompt);
   elements.timerToggle.addEventListener("change", syncTimerSettingsState);
@@ -274,6 +330,14 @@ function generateRound(mode) {
 
   if (mode === "pairs") {
     return generatePairsRound();
+  }
+
+  if (mode === "bignum") {
+    return generateBigNumRound();
+  }
+
+  if (mode === "write") {
+    return generateWriteRound();
   }
 
   return generateTeenRound();
@@ -476,6 +540,140 @@ function getTeenProfile() {
     maxTeen: 17,
     answerCount: 4,
     allowOnesQuestion: false,
+  };
+}
+
+function getBigNumProfile() {
+  const stats = state.modeStats.bignum;
+  const attempts = stats.wins + stats.misses;
+  const accuracy = attempts ? stats.wins / attempts : 1;
+
+  if (stats.wins < 4 || accuracy < 0.6) {
+    return {
+      maxNumber: 30,
+      answerCount: 3,
+      decadeFocus: false,
+    };
+  }
+
+  if (stats.streak >= 4 || accuracy > 0.82) {
+    return {
+      maxNumber: 100,
+      answerCount: 4,
+      decadeFocus: true,
+    };
+  }
+
+  return {
+    maxNumber: 60,
+    answerCount: 4,
+    decadeFocus: true,
+  };
+}
+
+function generateBigNumRound() {
+  const profile = getBigNumProfile();
+  const roll = Math.random();
+
+  if (roll < 0.4) {
+    return generateChartHiddenRound(profile);
+  }
+
+  if (roll < 0.7) {
+    return generateNextBigNumberRound(profile);
+  }
+
+  return generateMissingNumberRound(profile);
+}
+
+function generateChartHiddenRound(profile) {
+  const target = randomInt(11, profile.maxNumber);
+  const rowStart = Math.floor((target - 1) / 10) * 10 + 1;
+  const chartStart = rowStart > 10 ? rowStart - 10 : rowStart;
+  const choices = buildNearbyChoices(target, profile.answerCount, 100, { min: 1 });
+
+  return {
+    type: "scene-choice",
+    kicker: "Find the hiding number.",
+    title: "What number is hiding?",
+    subtitle: "The chart counts by ones, row by row.",
+    sceneClassName: "chart-scene-card",
+    sceneHtml: buildChartSceneHtml(chartStart, target),
+    layoutClass: "answer-choice-grid",
+    choices: choices.map((value) =>
+      createChoice({
+        correct: value === target,
+        html: buildNumberChoiceHtml(value, "hiding number"),
+      })
+    ),
+    successMessage: `Yes! The hiding number is ${formatNumber(target)}.`,
+    failureMessage: `The hiding number is ${formatNumber(target)}.`,
+  };
+}
+
+function generateNextBigNumberRound(profile) {
+  const crossDecade = profile.decadeFocus && Math.random() < 0.4;
+  const start = crossDecade
+    ? randomInt(2, Math.floor(profile.maxNumber / 10)) * 10 - 1
+    : randomInt(10, profile.maxNumber - 1);
+  const correct = start + 1;
+  const choices = buildNearbyChoices(correct, profile.answerCount, profile.maxNumber + 2, { min: 1 });
+
+  return {
+    type: "choice",
+    kicker: "Keep on counting!",
+    title: `What number comes after ${formatNumber(start)}?`,
+    subtitle: crossDecade
+      ? "A new row of ten starts here."
+      : "Count on by one.",
+    layoutClass: "answer-choice-grid",
+    choices: choices.map((value) =>
+      createChoice({
+        correct: value === correct,
+        html: buildNumberChoiceHtml(value, "next number"),
+      })
+    ),
+    successMessage: `Yes! ${formatNumber(correct)} comes after ${formatNumber(start)}.`,
+    failureMessage: `After ${formatNumber(start)} comes ${formatNumber(correct)}.`,
+  };
+}
+
+function generateMissingNumberRound(profile) {
+  const start = randomInt(1, profile.maxNumber - 3);
+  const missingIndex = randomInt(1, 2);
+  const numbers = [start, start + 1, start + 2, start + 3];
+  const correct = numbers[missingIndex];
+  const choices = buildNearbyChoices(correct, profile.answerCount, profile.maxNumber + 3, { min: 1 });
+
+  return {
+    type: "scene-choice",
+    kicker: "Fix the number pattern.",
+    title: "Which number is missing?",
+    subtitle: "Say the numbers in order to find the gap.",
+    sceneClassName: "sequence-scene-card",
+    sceneHtml: buildSequenceSceneHtml(numbers, missingIndex),
+    layoutClass: "answer-choice-grid",
+    choices: choices.map((value) =>
+      createChoice({
+        correct: value === correct,
+        html: buildNumberChoiceHtml(value, "missing number"),
+      })
+    ),
+    successMessage: `Yes! ${formatNumber(correct)} fills the gap.`,
+    failureMessage: `The missing number is ${formatNumber(correct)}.`,
+  };
+}
+
+function generateWriteRound() {
+  const digit = randomInt(0, 9);
+
+  return {
+    type: "trace",
+    kicker: modes.write.kicker,
+    title: `Trace the number ${digit}!`,
+    subtitle: "Color in the whole number with your finger.",
+    digit,
+    successMessage: `Yes! You wrote ${digit}!`,
   };
 }
 
@@ -850,6 +1048,11 @@ function renderRound(round) {
     return;
   }
 
+  if (round.type === "trace") {
+    renderTraceRound(round);
+    return;
+  }
+
   if (round.type === "choice") {
     elements.choices.className = `choices ${round.layoutClass || "answer-choice-grid"}`;
 
@@ -937,6 +1140,171 @@ function renderTapCountRound(round) {
   elements.choices.appendChild(scene);
 }
 
+function renderTraceRound(round) {
+  elements.choices.className = "choices scene-choice-layout";
+
+  const scene = document.createElement("div");
+  scene.className = "scene-card trace-card";
+
+  const canvas = document.createElement("canvas");
+  canvas.className = "trace-canvas";
+
+  const progressBar = document.createElement("div");
+  progressBar.className = "trace-progress";
+  const progressFill = document.createElement("div");
+  progressFill.className = "trace-progress-fill";
+  progressBar.appendChild(progressFill);
+
+  const clearButton = document.createElement("button");
+  clearButton.type = "button";
+  clearButton.className = "small-button trace-clear";
+  clearButton.textContent = "Start Over";
+
+  scene.appendChild(canvas);
+  scene.appendChild(progressBar);
+  scene.appendChild(clearButton);
+  elements.choices.appendChild(scene);
+
+  setupTracing(canvas, progressFill, clearButton, round);
+}
+
+function setupTracing(canvas, progressFill, clearButton, round) {
+  const size = Math.max(220, Math.min(360, canvas.parentElement.clientWidth - 36));
+  const dpr = window.devicePixelRatio || 1;
+
+  canvas.width = size * dpr;
+  canvas.height = size * dpr;
+  canvas.style.width = `${size}px`;
+  canvas.style.height = `${size}px`;
+
+  const ctx = canvas.getContext("2d");
+  ctx.scale(dpr, dpr);
+
+  const GRID = 26;
+  const cellSize = size / GRID;
+  const digitCells = new Set();
+  const coveredCells = new Set();
+  let lastPoint = null;
+  let done = false;
+
+  drawGhostDigit();
+
+  // Sample the ghost digit's pixels into a coarse grid so any font works.
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  for (let cy = 0; cy < GRID; cy += 1) {
+    for (let cx = 0; cx < GRID; cx += 1) {
+      const px = Math.floor((cx + 0.5) * cellSize * dpr);
+      const py = Math.floor((cy + 0.5) * cellSize * dpr);
+      const alpha = imageData.data[(py * canvas.width + px) * 4 + 3];
+      if (alpha > 20) {
+        digitCells.add(cy * GRID + cx);
+      }
+    }
+  }
+
+  function drawGhostDigit() {
+    ctx.clearRect(0, 0, size, size);
+    ctx.font = `900 ${size * 0.92}px "Avenir Next", "Trebuchet MS", "Verdana", sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "rgba(145, 85, 33, 0.18)";
+    ctx.fillText(String(round.digit), size / 2, size * 0.54);
+  }
+
+  function markCovered(x, y) {
+    const cx = Math.floor(x / cellSize);
+    const cy = Math.floor(y / cellSize);
+
+    for (let dy = -1; dy <= 1; dy += 1) {
+      for (let dx = -1; dx <= 1; dx += 1) {
+        const nx = cx + dx;
+        const ny = cy + dy;
+        if (nx < 0 || ny < 0 || nx >= GRID || ny >= GRID) {
+          continue;
+        }
+        const key = ny * GRID + nx;
+        if (digitCells.has(key)) {
+          coveredCells.add(key);
+        }
+      }
+    }
+  }
+
+  function updateProgress() {
+    const ratio = digitCells.size ? coveredCells.size / digitCells.size : 0;
+    progressFill.style.width = `${Math.min(100, ratio * 100)}%`;
+
+    if (!done && ratio >= 0.6) {
+      done = true;
+      progressFill.classList.add("complete");
+      playSoundEffect("success");
+      window.setTimeout(() => {
+        if (state.roundActive) {
+          handleCorrect(round.successMessage);
+        }
+      }, 450);
+    }
+  }
+
+  function pointFromEvent(event) {
+    const rect = canvas.getBoundingClientRect();
+    return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+  }
+
+  function drawStroke(from, to) {
+    ctx.strokeStyle = "#ff7a45";
+    ctx.lineWidth = size * 0.085;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    ctx.moveTo(from.x, from.y);
+    ctx.lineTo(to.x, to.y);
+    ctx.stroke();
+  }
+
+  canvas.addEventListener("pointerdown", (event) => {
+    if (!state.roundActive || done) {
+      return;
+    }
+    try {
+      canvas.setPointerCapture(event.pointerId);
+    } catch {
+      // Some browsers reject capture for synthetic or already-released pointers.
+    }
+    lastPoint = pointFromEvent(event);
+    drawStroke(lastPoint, lastPoint);
+    markCovered(lastPoint.x, lastPoint.y);
+    updateProgress();
+  });
+
+  canvas.addEventListener("pointermove", (event) => {
+    if (!lastPoint || !state.roundActive || done) {
+      return;
+    }
+    const point = pointFromEvent(event);
+    drawStroke(lastPoint, point);
+    markCovered(point.x, point.y);
+    lastPoint = point;
+    updateProgress();
+  });
+
+  ["pointerup", "pointercancel", "pointerleave"].forEach((eventName) => {
+    canvas.addEventListener(eventName, () => {
+      lastPoint = null;
+    });
+  });
+
+  clearButton.addEventListener("click", () => {
+    if (done) {
+      return;
+    }
+    coveredCells.clear();
+    lastPoint = null;
+    drawGhostDigit();
+    progressFill.style.width = "0%";
+  });
+}
+
 function buildChoiceButton(choice, round) {
   const button = document.createElement("button");
   button.className = ["choice-button", choice.className].filter(Boolean).join(" ");
@@ -1011,16 +1379,18 @@ function handleCorrect(customMessage) {
 
 function showLaunchCelebration(planetIndex) {
   const planet = getPlanet(planetIndex);
+  const sticker = awardSticker();
 
   applyPlanetTheme(planetIndex);
   updateJourney();
   elements.launchMessage.textContent = `Welcome to ${planet.name}!`;
   elements.launchPlanet.textContent = planet.emoji;
+  elements.launchSticker.textContent = `You found a sticker: ${sticker.emoji} ${sticker.name}!`;
   elements.launchOverlay.classList.remove("hidden");
   playSoundEffect("milestone");
   launchConfetti(90);
   showFeedback("success", `🚀 Blast off to ${planet.name}!`);
-  speakCustom(`Blast off! Welcome to ${planet.name}!`);
+  speakCustom(`Blast off! Welcome to ${planet.name}! You found a ${sticker.name} sticker!`);
 
   window.setTimeout(() => {
     elements.launchOverlay.classList.add("hidden");
@@ -1232,12 +1602,14 @@ function resetProgress() {
   state.mode = null;
   state.currentRound = null;
   state.modeStats = createModeStats();
+  state.stickers = {};
   updateReadPromptButton();
   persistProgress();
   updateStats();
   updateStreakVisuals();
   applyPlanetTheme(currentPlanetIndex());
   updateJourney();
+  updateStickerCount();
   clearFeedback();
   closeSettings();
 }
@@ -1302,6 +1674,7 @@ function loadProgress() {
       score: 0,
       streak: 0,
       stars: 0,
+      stickers: {},
       modeStats: createModeStats(),
     };
 
@@ -1325,10 +1698,21 @@ function loadProgress() {
       };
     });
 
+    const stickers = {};
+    if (parsed.stickers && typeof parsed.stickers === "object") {
+      STICKERS.forEach((sticker) => {
+        const count = Math.floor(Number(parsed.stickers[sticker.id])) || 0;
+        if (count > 0) {
+          stickers[sticker.id] = count;
+        }
+      });
+    }
+
     return {
       score: Number(parsed.score) || 0,
       streak: Number(parsed.streak) || 0,
       stars: Number(parsed.stars) || 0,
+      stickers,
       modeStats: nextModeStats,
     };
   } catch {
@@ -1336,6 +1720,7 @@ function loadProgress() {
       score: 0,
       streak: 0,
       stars: 0,
+      stickers: {},
       modeStats: createModeStats(),
     };
   }
@@ -1349,6 +1734,7 @@ function persistProgress() {
         score: state.score,
         streak: state.streak,
         stars: state.stars,
+        stickers: state.stickers,
         modeStats: state.modeStats,
       })
     );
@@ -1798,6 +2184,76 @@ function shakeGameScreen() {
   setTimeout(() => screen.classList.remove("game-shake"), 500);
 }
 
+function awardSticker() {
+  const unowned = STICKERS.filter((sticker) => !state.stickers[sticker.id]);
+  const pool = unowned.length ? unowned : STICKERS;
+  const sticker = pickRandom(pool);
+
+  state.stickers[sticker.id] = (state.stickers[sticker.id] || 0) + 1;
+  persistProgress();
+  updateStickerCount();
+
+  return sticker;
+}
+
+function backfillStickers() {
+  // Planets visited before the sticker book existed still earn stickers,
+  // capped so there is plenty left to collect.
+  const owned = Object.values(state.stickers).reduce((sum, count) => sum + count, 0);
+  const earned = Math.min(currentPlanetIndex(), 12);
+
+  for (let index = owned; index < earned; index += 1) {
+    awardSticker();
+  }
+}
+
+function updateStickerCount() {
+  const ownedKinds = STICKERS.filter((sticker) => state.stickers[sticker.id]).length;
+  elements.stickerCount.textContent = `${ownedKinds} / ${STICKERS.length}`;
+}
+
+function renderStickerBook() {
+  elements.stickerGrid.innerHTML = "";
+
+  STICKERS.forEach((sticker) => {
+    const count = state.stickers[sticker.id] || 0;
+    const slot = document.createElement("div");
+    slot.className = count ? "sticker-slot owned" : "sticker-slot";
+
+    if (count) {
+      slot.innerHTML = `
+        <span class="sticker-emoji">${sticker.emoji}</span>
+        <span class="sticker-name">${sticker.name}</span>
+        ${count > 1 ? `<span class="sticker-dup">×${count}</span>` : ""}
+      `;
+    } else {
+      slot.innerHTML = `
+        <span class="sticker-emoji mystery">?</span>
+        <span class="sticker-name">&nbsp;</span>
+      `;
+    }
+
+    elements.stickerGrid.appendChild(slot);
+  });
+}
+
+function openStickers() {
+  clearQueuedRound();
+  endRound();
+  stopSpeech();
+  stopBackgroundMusic();
+  state.mode = null;
+  state.currentRound = null;
+  updateReadPromptButton();
+  renderStickerBook();
+  showScreen("stickers");
+}
+
+function closeStickers() {
+  refreshHeader();
+  showScreen("home");
+}
+
 function currentPlanetIndex() {
   return Math.floor(state.stars / STARS_PER_PLANET);
 }
@@ -2006,6 +2462,32 @@ function buildTenFrameHtml(filledCount) {
       }).join("")}
     </div>
   `;
+}
+
+function buildChartSceneHtml(chartStart, target) {
+  const cellCount = Math.min(20, 101 - chartStart);
+  const cells = Array.from({ length: cellCount }, (_, index) => {
+    const value = chartStart + index;
+    if (value === target) {
+      return `<span class="chart-cell mystery">?</span>`;
+    }
+    return `<span class="chart-cell">${value}</span>`;
+  }).join("");
+
+  return `<div class="hundred-chart">${cells}</div>`;
+}
+
+function buildSequenceSceneHtml(numbers, missingIndex) {
+  const chips = numbers
+    .map((value, index) => {
+      if (index === missingIndex) {
+        return `<span class="seq-chip mystery">?</span>`;
+      }
+      return `<span class="seq-chip">${value}</span>`;
+    })
+    .join("");
+
+  return `<div class="sequence-strip">${chips}</div>`;
 }
 
 function buildStorySceneHtml(emoji, firstCount, secondCount, operation) {

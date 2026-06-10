@@ -401,6 +401,109 @@ main {
   background: linear-gradient(135deg, #d9ffe7, #f3fff8);
 }
 
+.berry {
+  background: linear-gradient(135deg, #ffd7e8, #fff0f7);
+}
+
+.lavender {
+  background: linear-gradient(135deg, #e7dcff, #f6f1ff);
+}
+
+/* ── Sticker book ── */
+
+.stickers-button {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 14px;
+  align-items: center;
+  width: 100%;
+  margin-top: 14px;
+  padding: 16px 20px;
+  border-radius: 24px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+  color: var(--ink);
+  font-weight: 800;
+  font-size: 1.15rem;
+  text-align: left;
+  backdrop-filter: blur(6px);
+}
+
+.stickers-button-emoji {
+  font-size: 1.8rem;
+}
+
+.sticker-count {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(255, 216, 77, 0.4);
+  font-size: 0.95rem;
+  color: #8b5a2b;
+}
+
+.sticker-card {
+  max-width: 760px;
+}
+
+.sticker-hint {
+  margin: 14px 0 0;
+  line-height: 1.45;
+  color: #6f4b29;
+}
+
+.sticker-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  margin-top: 16px;
+}
+
+.sticker-slot {
+  position: relative;
+  display: grid;
+  gap: 4px;
+  place-items: center;
+  padding: 12px 6px;
+  border-radius: 20px;
+  border: 3px dashed rgba(143, 88, 37, 0.22);
+  background: rgba(255, 255, 255, 0.6);
+  text-align: center;
+}
+
+.sticker-slot.owned {
+  border-style: solid;
+  border-color: rgba(255, 180, 94, 0.8);
+  background: var(--white);
+  animation: popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.sticker-emoji {
+  font-size: 2.2rem;
+}
+
+.sticker-emoji.mystery {
+  font-weight: 900;
+  color: rgba(143, 88, 37, 0.35);
+}
+
+.sticker-name {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #7f5631;
+}
+
+.sticker-dup {
+  position: absolute;
+  top: -8px;
+  right: -6px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--sky);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 900;
+}
+
 /* ── Shared card styles ── */
 
 .tip-panel,
@@ -767,6 +870,94 @@ main {
   animation: popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
+/* ── Hundred chart & sequences ── */
+
+.hundred-chart {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+}
+
+.chart-cell {
+  display: grid;
+  place-items: center;
+  min-height: 44px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.95);
+  font-weight: 800;
+  font-size: clamp(0.85rem, 2.4vw, 1.15rem);
+}
+
+.chart-cell.mystery {
+  background: linear-gradient(135deg, var(--coral), #ff9f5c);
+  color: #fff;
+  font-size: clamp(1.1rem, 3vw, 1.5rem);
+  font-weight: 900;
+  animation: bob 1.4s ease-in-out infinite;
+}
+
+.sequence-strip {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.seq-chip {
+  display: grid;
+  place-items: center;
+  min-width: 76px;
+  min-height: 76px;
+  padding: 8px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.95);
+  font-size: clamp(1.8rem, 5vw, 2.6rem);
+  font-weight: 900;
+}
+
+.seq-chip.mystery {
+  background: linear-gradient(135deg, var(--coral), #ff9f5c);
+  color: #fff;
+  animation: bob 1.4s ease-in-out infinite;
+}
+
+/* ── Trace (Write It) ── */
+
+.trace-card {
+  display: grid;
+  gap: 14px;
+  justify-items: center;
+}
+
+.trace-canvas {
+  border: 3px dashed rgba(143, 88, 37, 0.3);
+  border-radius: 26px;
+  background: rgba(255, 255, 255, 0.96);
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.trace-progress {
+  width: min(360px, 100%);
+  height: 16px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.6);
+  border: 2px solid rgba(145, 85, 33, 0.14);
+  overflow: hidden;
+}
+
+.trace-progress-fill {
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--sun), var(--coral));
+  transition: width 0.2s ease;
+}
+
+.trace-progress-fill.complete {
+  background: linear-gradient(90deg, var(--mint), #34d399);
+}
+
 .compare-scene {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
@@ -1050,6 +1241,14 @@ main {
   animation: popIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.35s both;
 }
 
+.launch-sticker {
+  margin: 14px 0 0;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #1e8a49;
+  animation: popIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.7s both;
+}
+
 /* ── Planet themes (background only; layout untouched) ── */
 
 body.planet-theme-0  { background-image: linear-gradient(-45deg, #fff5d7, #ffe4f3, #d6f0ff, #e2ffe9); }
@@ -1236,6 +1435,20 @@ body.planet-theme-11 { background-image: linear-gradient(-45deg, #ece0ff, #e0d4f
 
   .tap-item {
     min-height: 64px;
+  }
+
+  .chart-cell {
+    min-height: 34px;
+    border-radius: 9px;
+  }
+
+  .seq-chip {
+    min-width: 60px;
+    min-height: 60px;
+  }
+
+  .sticker-grid {
+    grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
   }
 
   .two-choice-grid,

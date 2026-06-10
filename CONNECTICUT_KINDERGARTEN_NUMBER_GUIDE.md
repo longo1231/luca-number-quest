@@ -26,16 +26,18 @@ By the end of kindergarten, Luca should be working toward the following:
 
 ## What the updated game now targets
 
-- `Count It`: counting objects, counting on, and counting by tens.
+- `Count It`: counting objects (including tap-to-count with one-to-one correspondence), counting on, and counting by tens.
 - `Compare Numbers`: comparing written numerals and groups of objects.
 - `Number Pairs`: number bonds, making 10, and simple add/subtract stories.
 - `Teen Numbers`: composing and decomposing numbers from 11 to 19 as `10 + ones`.
+- `Big Numbers`: the hundred chart, decade crossings, and missing-number patterns toward counting to 100.
+- `Write It`: tracing numerals 0 to 9 with a finger.
 
 ## Important note
 
 The app can support numeral recognition and number sense, but it does not replace off-screen practice with:
 
-- writing numerals by hand from 0 to 20;
+- writing numerals by hand with a pencil (the app's finger tracing is a starting point, not a substitute);
 - counting real objects and touching each object once;
 - talking through math thinking out loud with an adult.
 
