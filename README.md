@@ -19,6 +19,7 @@ The current version is tuned to Connecticut kindergarten number goals.
 - A tappable buddy mascot (robot, dino, or cat) that reacts to answers
 - One gentle retry before the answer is revealed on a wrong tap
 - Word Trail: Luca's twenty summer trail words, taught through meet, find, build, and read activities
+- Trail Passport: a seven-stop summer map where each word earns Meet, Find, Build, and Hear It stamps, with a camp patch for finishing every stop
 - Sound hints that connect trail words to their first letter sounds without blocking word practice
 - Math Compass: a gentle skill map that adapts number challenges from individual skills, not just a broad difficulty tier
 - A parent Learning Report with the number map and word-by-word Word Trail progress

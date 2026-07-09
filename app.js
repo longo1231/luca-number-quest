@@ -167,6 +167,23 @@ const WORD_TRAIL_WORDS = [
   { word: "pier", emoji: "🛟", camp: 7, sound: "/p/", pattern: "ie" },
 ];
 
+const TRAIL_PASSPORT_CAMPS = [
+  { id: 1, name: "Base Camp", emoji: "⛺", patch: "🧭", patchName: "Compass Patch" },
+  { id: 2, name: "Hill Lookout", emoji: "⛰️", patch: "🪨", patchName: "Rock Patch" },
+  { id: 3, name: "Pine Cave", emoji: "🌲", patch: "🦇", patchName: "Cave Patch" },
+  { id: 4, name: "River Park", emoji: "🌊", patch: "🌉", patchName: "Bridge Patch" },
+  { id: 5, name: "Oak Loop", emoji: "🌳", patch: "🍃", patchName: "Oak Leaf Patch" },
+  { id: 6, name: "Deer Brook", emoji: "🦌", patch: "👣", patchName: "Deer Track Patch" },
+  { id: 7, name: "Field Pier", emoji: "🛟", patch: "⚓", patchName: "Harbor Patch" },
+];
+
+const PASSPORT_STAMPS = [
+  { key: "meets", label: "Meet", emoji: "👋" },
+  { key: "finds", label: "Find", emoji: "👀" },
+  { key: "builds", label: "Build", emoji: "🔤" },
+  { key: "reads", label: "Hear It", emoji: "🔊" },
+];
+
 const MATH_SKILLS = {
   "one-to-one": { label: "Touch and count", shortLabel: "Counting" },
   cardinality: { label: "How many?", shortLabel: "How many" },
@@ -278,6 +295,10 @@ const state = {
   wordProgress: savedProgress.wordProgress,
   mathSkills: savedProgress.mathSkills,
   compassIndex: savedProgress.compassIndex,
+  passportPatchesSeen: savedProgress.passportPatchesSeen,
+  passportCampId: null,
+  passportTargetWord: null,
+  passportRewardTimeoutId: null,
   audioContext: null,
   availableVoices: [],
 };
@@ -317,12 +338,25 @@ const elements = {
     game: document.querySelector("#screen-game"),
     settings: document.querySelector("#screen-settings"),
     stickers: document.querySelector("#screen-stickers"),
+    passport: document.querySelector("#screen-passport"),
   },
   stickersButton: document.querySelector("#stickers-button"),
+  passportButton: document.querySelector("#passport-button"),
+  passportHomeStatus: document.querySelector("#passport-home-status"),
+  passportHomePatches: document.querySelector("#passport-home-patches"),
+  closePassport: document.querySelector("#close-passport"),
+  passportIntro: document.querySelector("#passport-intro"),
+  passportMap: document.querySelector("#passport-map"),
+  passportCampHead: document.querySelector("#passport-camp-head"),
+  passportWordGrid: document.querySelector("#passport-word-grid"),
   stickerCount: document.querySelector("#sticker-count"),
   stickerGrid: document.querySelector("#sticker-grid"),
   closeStickers: document.querySelector("#close-stickers"),
   launchSticker: document.querySelector("#launch-sticker"),
+  trailRewardOverlay: document.querySelector("#trail-reward-overlay"),
+  trailRewardIcon: document.querySelector("#trail-reward-icon"),
+  trailRewardTitle: document.querySelector("#trail-reward-title"),
+  trailRewardDetail: document.querySelector("#trail-reward-detail"),
   modeChip: document.querySelector("#mode-chip"),
   fuelChip: document.querySelector("#fuel-chip"),
   journeyEmoji: document.querySelector("#journey-planet-emoji"),
@@ -374,6 +408,7 @@ function init() {
   updateStreakVisuals();
   applyPlanetTheme(currentPlanetIndex());
   updateJourney();
+  updatePassportHomeButton();
   renderMascot();
   backfillStickers();
   updateStickerCount();
@@ -391,6 +426,8 @@ function bindEvents() {
   elements.closeSettings.addEventListener("click", closeSettings);
   elements.stickersButton.addEventListener("click", openStickers);
   elements.closeStickers.addEventListener("click", closeStickers);
+  elements.passportButton.addEventListener("click", openPassport);
+  elements.closePassport.addEventListener("click", closePassport);
   elements.mascot.addEventListener("click", cycleMascot);
   elements.backButton.addEventListener("click", goHome);
   elements.readPrompt.addEventListener("click", readCurrentPrompt);
@@ -466,6 +503,206 @@ function getUnlockedWordTrailWords() {
   return WORD_TRAIL_WORDS.filter((word) => word.camp <= unlockedThrough);
 }
 
+function getTrailPassportCamp(campId) {
+  return TRAIL_PASSPORT_CAMPS.find((camp) => camp.id === Number(campId)) || null;
+}
+
+function getTrailCampWords(campId) {
+  return WORD_TRAIL_WORDS.filter((word) => word.camp === Number(campId));
+}
+
+function getNextPassportStamp(word) {
+  const progress = getWordProgress(word.word);
+  return PASSPORT_STAMPS.find((stamp) => progress[stamp.key] < 1) || null;
+}
+
+function isPassportWordComplete(word) {
+  return !getNextPassportStamp(word);
+}
+
+function getPassportCampState(camp) {
+  const words = getTrailCampWords(camp.id);
+  const unlockedCamps = new Set(getUnlockedWordTrailWords().map((word) => word.camp));
+  const stampCount = words.reduce(
+    (total, word) => total + PASSPORT_STAMPS.filter((stamp) => getWordProgress(word.word)[stamp.key] >= 1).length,
+    0
+  );
+  const nextWord = words.find((word) => !isPassportWordComplete(word)) || words[0];
+
+  return {
+    camp,
+    words,
+    stampCount,
+    stampTotal: words.length * PASSPORT_STAMPS.length,
+    isOpen: unlockedCamps.has(camp.id),
+    isComplete: words.every(isPassportWordComplete),
+    nextWord,
+    nextStamp: nextWord ? getNextPassportStamp(nextWord) : null,
+  };
+}
+
+function getRecommendedPassportCamp() {
+  const states = TRAIL_PASSPORT_CAMPS.map(getPassportCampState);
+  return states.find((campState) => campState.isOpen && !campState.isComplete)
+    || states.filter((campState) => campState.isOpen).pop()
+    || states[0];
+}
+
+function updatePassportHomeButton() {
+  const nextCamp = getRecommendedPassportCamp();
+  const earnedPatches = TRAIL_PASSPORT_CAMPS.filter((camp) => getPassportCampState(camp).isComplete).length;
+  elements.passportHomePatches.textContent = `${earnedPatches} / ${TRAIL_PASSPORT_CAMPS.length} 🏅`;
+
+  if (nextCamp.isComplete) {
+    elements.passportHomeStatus.textContent = "Every camp is complete — pick any trail word to explore again.";
+    return;
+  }
+
+  elements.passportHomeStatus.textContent = `Next: ${nextCamp.nextWord.emoji} ${nextCamp.nextWord.word} — ${nextCamp.nextStamp.label} stamp`;
+}
+
+function openPassport() {
+  clearQueuedRound();
+  endRound();
+  stopSpeech();
+  stopBackgroundMusic();
+  state.mode = null;
+  state.currentRound = null;
+  state.passportTargetWord = null;
+  state.passportCampId = getRecommendedPassportCamp().camp.id;
+  updateReadPromptButton();
+  renderTrailPassport();
+  showScreen("passport");
+}
+
+function closePassport() {
+  state.passportTargetWord = null;
+  goHome();
+}
+
+function renderTrailPassport() {
+  const campStates = TRAIL_PASSPORT_CAMPS.map(getPassportCampState);
+  let selected = campStates.find((campState) => campState.camp.id === state.passportCampId);
+  if (!selected || !selected.isOpen) {
+    selected = getRecommendedPassportCamp();
+    state.passportCampId = selected.camp.id;
+  }
+
+  const earnedPatches = campStates.filter((campState) => campState.isComplete).length;
+  elements.passportIntro.textContent = `${earnedPatches} of ${TRAIL_PASSPORT_CAMPS.length} camp patches earned. Tap an open map stop or a word card to play its next trail step.`;
+  elements.passportMap.innerHTML = "";
+
+  campStates.forEach((campState) => {
+    const { camp } = campState;
+    const stop = document.createElement("button");
+    stop.type = "button";
+    stop.className = [
+      "passport-stop",
+      campState.isOpen ? "open" : "locked",
+      campState.isComplete ? "complete" : "",
+      selected.camp.id === camp.id ? "selected" : "",
+    ].filter(Boolean).join(" ");
+    stop.disabled = !campState.isOpen;
+    stop.innerHTML = `
+      <span class="passport-stop-marker">${campState.isOpen ? camp.emoji : "🔒"}</span>
+      <span class="passport-stop-number">${camp.id}</span>
+      <strong>${camp.name}</strong>
+      <small>${campState.isComplete ? `${camp.patch} ${camp.patchName}` : `${campState.stampCount} / ${campState.stampTotal} stamps`}</small>
+    `;
+    stop.addEventListener("click", () => {
+      state.passportCampId = camp.id;
+      renderTrailPassport();
+    });
+    elements.passportMap.appendChild(stop);
+  });
+
+  const nextText = selected.isComplete
+    ? "Every word has its explorer border. Tap one for a review adventure."
+    : `Next trail step: ${selected.nextWord.emoji} ${selected.nextWord.word} — ${selected.nextStamp.emoji} ${selected.nextStamp.label}.`;
+  elements.passportCampHead.innerHTML = `
+    <div>
+      <p class="passport-kicker">Camp ${selected.camp.id}</p>
+      <h3>${selected.camp.emoji} ${selected.camp.name}</h3>
+      <p>${nextText}</p>
+    </div>
+    <span class="passport-patch ${selected.isComplete ? "earned" : ""}">
+      ${selected.isComplete ? selected.camp.patch : "🏅"}
+      <span>${selected.isComplete ? selected.camp.patchName : "Camp patch"}</span>
+    </span>
+  `;
+
+  elements.passportWordGrid.innerHTML = "";
+  selected.words.forEach((word) => {
+    const progress = getWordProgress(word.word);
+    const complete = isPassportWordComplete(word);
+    const nextStamp = getNextPassportStamp(word);
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = ["passport-word-card", complete ? "complete" : ""].filter(Boolean).join(" ");
+    card.setAttribute("aria-label", `${word.word}. ${complete ? "All stamps earned. Review this word." : `Next: ${nextStamp.label}.`}`);
+    card.innerHTML = `
+      <span class="passport-word-picture">${word.emoji}</span>
+      <strong>${word.word}</strong>
+      <span class="passport-stamp-row">
+        ${PASSPORT_STAMPS.map((stamp) => `
+          <span class="passport-stamp ${progress[stamp.key] >= 1 ? "earned" : ""}" title="${stamp.label}">
+            ${progress[stamp.key] >= 1 ? stamp.emoji : "·"}
+          </span>
+        `).join("")}
+      </span>
+      <span class="passport-word-next">${complete ? "⭐ Trail star earned" : `${nextStamp.emoji} Next: ${nextStamp.label}`}</span>
+    `;
+    card.addEventListener("click", () => startPassportWord(word.word));
+    elements.passportWordGrid.appendChild(card);
+  });
+}
+
+function startPassportWord(wordKey) {
+  const word = WORD_TRAIL_WORDS.find((item) => item.word === wordKey);
+  const isUnlocked = getUnlockedWordTrailWords().some((item) => item.word === wordKey);
+  if (!word || !isUnlocked) {
+    return;
+  }
+
+  state.passportCampId = word.camp;
+  state.passportTargetWord = word.word;
+  startMode("word");
+}
+
+function showTrailReward(reward) {
+  if (!reward?.isNewStamp && !reward?.earnedCampPatch) {
+    return 0;
+  }
+
+  const camp = reward.camp || getTrailPassportCamp(reward.wordData?.camp);
+  const stamp = reward.stamp;
+  const hasPatch = Boolean(reward.earnedCampPatch);
+  elements.trailRewardIcon.textContent = hasPatch ? camp.patch : stamp.emoji;
+  elements.trailRewardTitle.textContent = hasPatch ? `${camp.patchName} earned!` : `New ${stamp.label} stamp!`;
+  elements.trailRewardDetail.textContent = hasPatch
+    ? `${camp.name} is complete!`
+    : `${reward.word} goes in your Trail Passport.`;
+  elements.trailRewardOverlay.classList.remove("hidden");
+
+  if (state.passportRewardTimeoutId) {
+    window.clearTimeout(state.passportRewardTimeoutId);
+  }
+  state.passportRewardTimeoutId = window.setTimeout(() => {
+    elements.trailRewardOverlay.classList.add("hidden");
+    state.passportRewardTimeoutId = null;
+  }, hasPatch ? 1550 : 1000);
+
+  return hasPatch ? 1450 : 850;
+}
+
+function clearTrailReward() {
+  if (state.passportRewardTimeoutId) {
+    window.clearTimeout(state.passportRewardTimeoutId);
+    state.passportRewardTimeoutId = null;
+  }
+  elements.trailRewardOverlay.classList.add("hidden");
+}
+
 function startMode(mode) {
   if (!modes[mode]) {
     return;
@@ -535,7 +772,12 @@ function generateRound(mode) {
 }
 
 function generateWordTrailRound() {
-  const word = chooseWordTrailWord();
+  const requestedWord = WORD_TRAIL_WORDS.find((word) => word.word === state.passportTargetWord);
+  const unlocked = new Set(getUnlockedWordTrailWords().map((word) => word.word));
+  const word = requestedWord && unlocked.has(requestedWord.word)
+    ? requestedWord
+    : chooseWordTrailWord();
+  state.passportTargetWord = null;
   const progress = getWordProgress(word.word);
 
   if (progress.meets === 0) {
@@ -2025,13 +2267,14 @@ function createChoice({ correct, html, className = "" }) {
 function handleCorrect(customMessage) {
   const usedRetry = state.retryUsed;
   recordModeResult(true, usedRetry);
-  recordRoundLearningResult(state.currentRound, true, usedRetry);
+  const passportReward = recordRoundLearningResult(state.currentRound, true, usedRetry);
   endRound();
   const previousPlanet = currentPlanetIndex();
   state.score += 1;
   state.streak += 1;
   state.stars += 1;
   persistProgress();
+  updatePassportHomeButton();
   updateStats(true);
   updateStreakVisuals();
   updateJourney();
@@ -2041,6 +2284,8 @@ function handleCorrect(customMessage) {
     showLaunchCelebration(currentPlanetIndex());
     return;
   }
+
+  const passportDelay = showTrailReward(passportReward);
 
   const isMilestone = state.streak > 0 && state.streak % 5 === 0;
 
@@ -2056,7 +2301,7 @@ function handleCorrect(customMessage) {
       : applyName(pickRandom(milestonePraise));
     showFeedback("success", msg);
     speakCustom(msg);
-    queueNextRound(1800);
+    queueNextRound(1800 + passportDelay);
   } else {
     setMascotState("happy", 1000);
     playSoundEffect(pickRandom(["success", "success2", "success3"]));
@@ -2068,7 +2313,7 @@ function handleCorrect(customMessage) {
     } else {
       speakPraise();
     }
-    queueNextRound(1000);
+    queueNextRound(1000 + passportDelay);
   }
 }
 
@@ -2197,6 +2442,7 @@ function showScreen(name) {
 
 function goHome() {
   clearQueuedRound();
+  clearTrailReward();
   endRound();
   stopSpeech();
   stopBackgroundMusic();
@@ -2210,6 +2456,7 @@ function goHome() {
 
 function openSettings() {
   clearQueuedRound();
+  clearTrailReward();
   endRound();
   stopSpeech();
   stopBackgroundMusic();
@@ -2453,6 +2700,9 @@ function resetProgress() {
   state.wordProgress = createWordProgress();
   state.mathSkills = createMathSkillProgress();
   state.compassIndex = 0;
+  state.passportPatchesSeen = {};
+  state.passportCampId = null;
+  state.passportTargetWord = null;
   state.stickers = {};
   updateReadPromptButton();
   persistProgress();
@@ -2461,6 +2711,7 @@ function resetProgress() {
   applyPlanetTheme(currentPlanetIndex());
   updateJourney();
   updateStickerCount();
+  updatePassportHomeButton();
   clearFeedback();
   closeSettings();
 }
@@ -2488,8 +2739,10 @@ function recordModeResult(didWin, usedRetry = false) {
 
 function recordRoundLearningResult(round, didWin, usedRetry = false) {
   if (!round) {
-    return;
+    return null;
   }
+
+  let passportReward = null;
 
   if (round.skill && MATH_SKILLS[round.skill]) {
     const progress = getMathSkillProgress(round.skill);
@@ -2506,12 +2759,34 @@ function recordRoundLearningResult(round, didWin, usedRetry = false) {
   if (round.word && round.wordStep) {
     const progress = getWordProgress(round.word);
     if (didWin) {
+      const wasNewStamp = (Number(progress[round.wordStep]) || 0) < 1;
       progress.wins += 1;
       progress[round.wordStep] = (Number(progress[round.wordStep]) || 0) + 1;
+
+      const wordData = round.wordData || WORD_TRAIL_WORDS.find((word) => word.word === round.word);
+      const camp = getTrailPassportCamp(wordData?.camp);
+      const justEarnedPatch = camp
+        && getPassportCampState(camp).isComplete
+        && !state.passportPatchesSeen[camp.id];
+
+      if (justEarnedPatch) {
+        state.passportPatchesSeen[camp.id] = true;
+      }
+
+      passportReward = {
+        word: round.word,
+        wordData,
+        stamp: PASSPORT_STAMPS.find((stamp) => stamp.key === round.wordStep),
+        camp,
+        isNewStamp: wasNewStamp,
+        earnedCampPatch: Boolean(justEarnedPatch),
+      };
     } else {
       progress.misses += 1;
     }
   }
+
+  return passportReward;
 }
 
 function loadSettings() {
@@ -2563,6 +2838,7 @@ function loadProgress() {
       wordProgress: createWordProgress(),
       mathSkills: createMathSkillProgress(),
       compassIndex: 0,
+      passportPatchesSeen: {},
     };
 
     if (!raw) {
@@ -2625,6 +2901,15 @@ function loadProgress() {
       };
     });
 
+    const passportPatchesSeen = {};
+    if (parsed.passportPatchesSeen && typeof parsed.passportPatchesSeen === "object") {
+      TRAIL_PASSPORT_CAMPS.forEach((camp) => {
+        if (parsed.passportPatchesSeen[camp.id]) {
+          passportPatchesSeen[camp.id] = true;
+        }
+      });
+    }
+
     return {
       score: Number(parsed.score) || 0,
       streak: Number(parsed.streak) || 0,
@@ -2634,6 +2919,7 @@ function loadProgress() {
       wordProgress,
       mathSkills,
       compassIndex: Math.max(0, Math.floor(Number(parsed.compassIndex) || 0)),
+      passportPatchesSeen,
     };
   } catch {
     return {
@@ -2645,6 +2931,7 @@ function loadProgress() {
       wordProgress: createWordProgress(),
       mathSkills: createMathSkillProgress(),
       compassIndex: 0,
+      passportPatchesSeen: {},
     };
   }
 }
@@ -2662,6 +2949,7 @@ function persistProgress() {
         wordProgress: state.wordProgress,
         mathSkills: state.mathSkills,
         compassIndex: state.compassIndex,
+        passportPatchesSeen: state.passportPatchesSeen,
       })
     );
   } catch {
@@ -3228,6 +3516,7 @@ function renderStickerBook() {
 
 function openStickers() {
   clearQueuedRound();
+  clearTrailReward();
   endRound();
   stopSpeech();
   stopBackgroundMusic();

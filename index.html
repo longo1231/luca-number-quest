@@ -134,6 +134,15 @@
             </button>
           </section>
 
+          <button id="passport-button" class="passport-button" type="button">
+            <span class="passport-button-emoji" aria-hidden="true">🗺️</span>
+            <span class="passport-button-copy">
+              <strong>Trail Passport</strong>
+              <small id="passport-home-status">Open Base Camp and collect your first stamps.</small>
+            </span>
+            <span id="passport-home-patches" class="passport-home-patches">0 / 7 🏅</span>
+          </button>
+
           <button id="stickers-button" class="stickers-button" type="button">
             <span class="stickers-button-emoji" aria-hidden="true">📒</span>
             <span class="stickers-button-text">My Sticker Book</span>
@@ -182,6 +191,21 @@
             </div>
             <p class="sticker-hint">Blast off to a new planet to find a new sticker!</p>
             <div id="sticker-grid" class="sticker-grid"></div>
+          </div>
+        </section>
+
+        <section id="screen-passport" class="screen" aria-label="Trail Passport">
+          <div class="passport-card">
+            <div class="settings-head">
+              <h2>🗺️ Trail Passport</h2>
+              <button id="close-passport" class="small-button" type="button">Done</button>
+            </div>
+            <p id="passport-intro" class="passport-intro">Follow the map, collect stamps, and earn a patch at every camp.</p>
+            <div id="passport-map" class="passport-map" aria-label="Summer trail map"></div>
+            <section class="passport-camp-panel" aria-live="polite">
+              <div id="passport-camp-head" class="passport-camp-head"></div>
+              <div id="passport-word-grid" class="passport-word-grid"></div>
+            </section>
           </div>
         </section>
 
@@ -271,6 +295,14 @@
           <p id="launch-message" class="launch-message">Welcome to The Moon!</p>
           <span id="launch-planet" class="launch-planet" aria-hidden="true">🌕</span>
           <p id="launch-sticker" class="launch-sticker"></p>
+        </div>
+      </div>
+
+      <div id="trail-reward-overlay" class="trail-reward-overlay hidden" aria-live="polite">
+        <div class="trail-reward-card">
+          <span id="trail-reward-icon" class="trail-reward-icon" aria-hidden="true">🛂</span>
+          <strong id="trail-reward-title">New trail stamp!</strong>
+          <span id="trail-reward-detail">Great exploring!</span>
         </div>
       </div>
     </div>
