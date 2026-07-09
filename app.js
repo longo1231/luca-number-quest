@@ -6,8 +6,15 @@ const defaultSettings = {
   roundSeconds: 20,
   timerEnabled: false,
   voicePraise: true,
+  voicePace: "slow",
   soundEffects: true,
   mascot: "robot",
+};
+
+const VOICE_PACE_PROFILES = {
+  "extra-slow": { prompt: 0.7, word: 0.64, count: 0.76, praise: 0.9 },
+  slow: { prompt: 0.82, word: 0.74, count: 0.88, praise: 0.98 },
+  natural: { prompt: 0.94, word: 0.86, count: 0.96, praise: 1.04 },
 };
 
 const modes = {
@@ -343,6 +350,7 @@ const elements = {
   roundSeconds: document.querySelector("#round-seconds"),
   timerToggle: document.querySelector("#timer-toggle"),
   voiceToggle: document.querySelector("#voice-toggle"),
+  voicePace: document.querySelector("#voice-pace"),
   soundToggle: document.querySelector("#sound-toggle"),
   saveSettings: document.querySelector("#save-settings"),
   resetProgress: document.querySelector("#reset-progress"),
@@ -570,7 +578,7 @@ function generateWordMeetRound(word) {
     type: "scene-choice",
     kicker: `Word Trail · Camp ${word.camp}`,
     title: "Meet a new trail word!",
-    spokenPrompt: `Let's meet the word ${word.word}. ${word.word}.`,
+    spokenPrompt: `Let's meet a new word. ${word.word}. ... ${word.word}.`,
     subtitle: "Look, listen, and tap the word when you are ready.",
     sceneClassName: "word-meet-scene",
     sceneHtml: buildWordTrailSceneHtml(word, { showWord: true, showHint: true }),
@@ -593,7 +601,7 @@ function generateWordFindRound(word) {
     type: "scene-choice",
     kicker: `Word Trail · Camp ${word.camp}`,
     title: `Find the word for this ${word.emoji}.`,
-    spokenPrompt: `Find the word ${word.word}.`,
+    spokenPrompt: `Find the word, ${word.word}.`,
     subtitle: "Look at the letters, then tap the matching word.",
     sceneClassName: "word-picture-scene",
     sceneHtml: buildWordTrailSceneHtml(word),
@@ -617,7 +625,7 @@ function generateWordBuildRound(word) {
     type: "word-build",
     kicker: `Word Trail · Camp ${word.camp}`,
     title: `Build the word ${word.word}.`,
-    spokenPrompt: `Build the word ${word.word}.`,
+    spokenPrompt: `Build the word, ${word.word}.`,
     subtitle: "Tap the letters in the order they belong.",
     word: word.word,
     wordData: word,
@@ -632,7 +640,7 @@ function generateWordReadRound(word) {
     type: "scene-choice",
     kicker: `Word Trail · Camp ${word.camp}`,
     title: "Which trail word did you hear?",
-    spokenPrompt: `Find the word ${word.word}.`,
+    spokenPrompt: `Listen carefully. The word is, ${word.word}. ... ${word.word}.`,
     subtitle: "Try it from memory. You can use Read It for a hint.",
     sceneClassName: "word-read-scene",
     sceneHtml: `<div class="word-read-badge">👀<span>Look at every letter.</span></div>`,
@@ -2376,6 +2384,7 @@ function saveSettings() {
     roundSeconds: nextRoundSeconds,
     timerEnabled: elements.timerToggle.checked,
     voicePraise: elements.voiceToggle.checked,
+    voicePace: normalizeVoicePace(elements.voicePace.value),
     soundEffects: elements.soundToggle.checked,
     mascot: state.settings.mascot,
   };
@@ -2391,6 +2400,7 @@ function populateSettingsForm() {
   elements.roundSeconds.value = String(state.settings.roundSeconds);
   elements.timerToggle.checked = Boolean(state.settings.timerEnabled);
   elements.voiceToggle.checked = Boolean(state.settings.voicePraise);
+  elements.voicePace.value = normalizeVoicePace(state.settings.voicePace);
   elements.soundToggle.checked = Boolean(state.settings.soundEffects);
 }
 
@@ -2522,6 +2532,7 @@ function loadSettings() {
       roundSeconds: nextRoundSeconds,
       timerEnabled: Boolean(savedSettings.timerEnabled),
       voicePraise: Boolean(savedSettings.voicePraise),
+      voicePace: normalizeVoicePace(savedSettings.voicePace),
       soundEffects: Boolean(savedSettings.soundEffects),
       mascot: MASCOT_ORDER.includes(savedSettings.mascot)
         ? savedSettings.mascot
@@ -2736,6 +2747,9 @@ function scoreSpeechVoice(voice) {
   }
 
   [
+    ["premium", 48],
+    ["enhanced", 42],
+    ["natural", 36],
     ["samantha", 40],
     ["ava", 32],
     ["allison", 32],
@@ -2779,16 +2793,10 @@ function speakUtterance(utterance, kind = "prompt") {
     utterance.lang = "en-US";
   }
 
-  if (kind === "praise") {
-    utterance.rate = 1.12;
-    utterance.pitch = 1.5;
-  } else if (kind === "count") {
-    utterance.rate = 1.15;
-    utterance.pitch = 1.3;
-  } else {
-    utterance.rate = 0.9;
-    utterance.pitch = 1.05;
-  }
+  const pace = VOICE_PACE_PROFILES[normalizeVoicePace(state.settings.voicePace)];
+  const isWordPrompt = kind === "prompt" && Boolean(state.currentRound?.word);
+  utterance.rate = isWordPrompt ? pace.word : pace[kind] || pace.prompt;
+  utterance.pitch = kind === "praise" ? 1.08 : 1;
 
   stopSpeech();
   window.speechSynthesis.speak(utterance);
@@ -2800,6 +2808,12 @@ function stopSpeech() {
   }
 
   window.speechSynthesis.cancel();
+}
+
+function normalizeVoicePace(value) {
+  return Object.prototype.hasOwnProperty.call(VOICE_PACE_PROFILES, value)
+    ? value
+    : defaultSettings.voicePace;
 }
 
 function playSoundEffect(effectName) {
