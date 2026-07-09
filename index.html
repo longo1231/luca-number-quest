@@ -6,7 +6,7 @@
     <title>Luca Number Quest</title>
     <meta
       name="description"
-      content="A simple touch-first kindergarten number game with counting, comparing, number pairs, and teen numbers."
+      content="A simple touch-first learning game with kindergarten number adventures and a first-reading Word Trail."
     />
     <meta name="theme-color" content="#ff8b36" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -21,7 +21,7 @@
     <div class="app-shell">
       <header class="hero">
         <div class="hero-copy">
-          <p class="eyebrow">Big taps. Kindergarten number practice.</p>
+        <p class="eyebrow">Big taps. Numbers and trail words.</p>
           <h1 id="app-title">Luca Number Quest</h1>
           <p id="hero-message" class="hero-message">
             Pick a skill and help the rocket blast off.
@@ -116,6 +116,22 @@
                 <small>Trace numbers with your finger</small>
               </span>
             </button>
+
+            <button class="menu-button forest" data-mode="word">
+              <span class="menu-emoji" aria-hidden="true">🥾</span>
+              <span class="menu-text">
+                <strong>Word Trail</strong>
+                <small>Find, build, and read summer trail words</small>
+              </span>
+            </button>
+
+            <button class="menu-button compass" data-mode="compass">
+              <span class="menu-emoji" aria-hidden="true">🧭</span>
+              <span class="menu-text">
+                <strong>Math Compass</strong>
+                <small>Try a tiny number challenge picked just for you</small>
+              </span>
+            </button>
           </section>
 
           <button id="stickers-button" class="stickers-button" type="button">
@@ -125,7 +141,7 @@
           </button>
 
           <section class="tip-panel" aria-label="Parent tip">
-            <p>Tuned to kindergarten number goals: counting, comparing, number pairs, teen numbers, the hundred chart, and writing numerals.</p>
+            <p>One shared adventure for number sense and first reading: counting, number puzzles, trail words, and sounds.</p>
           </section>
         </section>
 
@@ -207,8 +223,20 @@
             </label>
 
             <div class="skill-report">
-              <h3>Skill Report</h3>
+              <h3>Number Quest</h3>
               <div id="skill-report-grid" class="skill-report-grid"></div>
+            </div>
+
+            <div class="skill-report">
+              <h3>Math Compass</h3>
+              <p class="report-intro">A gentle map of what to practice next. It learns from all number games, not just Compass rounds.</p>
+              <div id="math-skill-report-grid" class="math-skill-report-grid"></div>
+            </div>
+
+            <div class="skill-report">
+              <h3>Word Trail</h3>
+              <p id="word-trail-report-note" class="report-intro">Start with map, dog, and dam. New camps open as Luca gets comfortable.</p>
+              <div id="word-report-grid" class="word-report-grid"></div>
             </div>
 
             <div class="settings-actions">

@@ -409,6 +409,14 @@ main {
   background: linear-gradient(135deg, #e7dcff, #f6f1ff);
 }
 
+.forest {
+  background: linear-gradient(135deg, #cfeecf, #effbe9);
+}
+
+.compass {
+  background: linear-gradient(135deg, #d9e7ff, #f0f5ff);
+}
+
 /* ── Sticker book ── */
 
 .stickers-button {
@@ -733,6 +741,18 @@ main {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.single-choice-grid {
+  display: grid;
+  grid-template-columns: minmax(180px, 360px);
+  justify-content: center;
+}
+
+.word-choice-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
 .choice-button {
   min-height: 168px;
   padding: 18px;
@@ -784,6 +804,15 @@ main {
 
 .equation-choice {
   min-height: 136px;
+}
+
+.word-choice {
+  min-height: 132px;
+}
+
+.word-choice .choice-word {
+  font-family: "Avenir Next", "Trebuchet MS", "Verdana", sans-serif;
+  letter-spacing: 0.035em;
 }
 
 .emoji-choice {
@@ -858,6 +887,253 @@ main {
   border-radius: 20px;
   background: rgba(255, 255, 255, 0.95);
   font-size: clamp(1.8rem, 5vw, 2.7rem);
+}
+
+/* ── Word Trail ── */
+
+.word-meet-scene,
+.word-picture-scene,
+.word-read-scene,
+.word-build-card {
+  background:
+    linear-gradient(145deg, rgba(231, 255, 229, 0.94), rgba(255, 253, 235, 0.94)),
+    var(--card);
+}
+
+.word-trail-scene {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  min-height: 162px;
+  padding: 8px;
+  text-align: center;
+}
+
+.word-trail-emoji {
+  display: grid;
+  place-items: center;
+  width: 96px;
+  height: 96px;
+  border-radius: 30px;
+  background: rgba(255, 255, 255, 0.76);
+  box-shadow: 0 8px 20px rgba(59, 109, 62, 0.12);
+  font-size: 4.1rem;
+}
+
+.trail-word-display {
+  padding: 8px 18px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.88);
+  color: #245c39;
+  font-size: clamp(2.3rem, 8vw, 4rem);
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
+.trail-word-hint {
+  color: #52705a;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.word-read-badge {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  min-height: 140px;
+  padding: 18px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #45614c;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.word-read-badge::first-line {
+  font-size: 3.4rem;
+}
+
+.word-build-card {
+  display: grid;
+  gap: 16px;
+  justify-items: center;
+}
+
+.word-build-card .word-trail-scene {
+  min-height: 0;
+}
+
+.word-build-answer {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.word-build-slot {
+  display: grid;
+  place-items: center;
+  width: clamp(42px, 10vw, 58px);
+  height: clamp(52px, 12vw, 68px);
+  border-bottom: 5px solid #5e9867;
+  color: #245c39;
+  font-size: clamp(2rem, 7vw, 3rem);
+  font-weight: 900;
+  line-height: 1;
+}
+
+.letter-tile-grid {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.letter-tile {
+  display: grid;
+  place-items: center;
+  width: clamp(58px, 14vw, 76px);
+  height: clamp(64px, 15vw, 84px);
+  border-radius: 22px;
+  background: linear-gradient(145deg, #ffffff, #e9f8e9);
+  box-shadow: 0 8px 16px rgba(48, 99, 59, 0.16);
+  color: #245c39;
+  font-size: clamp(2rem, 7vw, 3.1rem);
+  font-weight: 900;
+  transition: transform 120ms ease, opacity 120ms ease;
+}
+
+.letter-tile:active {
+  transform: scale(0.92);
+}
+
+.letter-tile:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.word-build-controls {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ── Math Compass scenes ── */
+
+.subitize-scene,
+.numeral-match-scene,
+.number-line-scene {
+  background:
+    linear-gradient(145deg, rgba(235, 244, 255, 0.92), rgba(255, 251, 221, 0.92)),
+    var(--card);
+}
+
+.subitize-board {
+  position: relative;
+  width: min(320px, 100%);
+  aspect-ratio: 1.45;
+  margin: 0 auto;
+  overflow: hidden;
+  border-radius: 28px;
+  background: radial-gradient(circle at 50% 45%, #2d5792, #193666);
+  box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.14);
+}
+
+.subitize-star {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  transform: translate(-50%, -50%);
+  font-size: clamp(2rem, 7vw, 3rem);
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.24));
+}
+
+.quantity-scene {
+  padding: 8px;
+}
+
+.quantity-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(36px, 1fr));
+}
+
+.quantity-star {
+  display: grid;
+  place-items: center;
+  min-height: 46px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.83);
+  font-size: 1.75rem;
+}
+
+.zero-scene {
+  display: grid;
+  min-height: 126px;
+  place-items: center;
+  gap: 8px;
+  border-radius: 24px;
+  background: linear-gradient(145deg, #274b82, #19305e);
+  color: #fff;
+  text-align: center;
+}
+
+.zero-scene span {
+  font-size: 3.4rem;
+}
+
+.number-line {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(11, minmax(0, 1fr));
+  gap: 3px;
+  align-items: end;
+  min-height: 126px;
+  padding: 24px 2px 8px;
+}
+
+.number-line::before {
+  position: absolute;
+  right: 4px;
+  bottom: 45px;
+  left: 4px;
+  height: 7px;
+  border-radius: 99px;
+  background: #426ea8;
+  content: "";
+}
+
+.number-line-marker {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 7px;
+  justify-items: center;
+  color: #1d467c;
+  font-size: clamp(0.74rem, 2.6vw, 1rem);
+  font-weight: 900;
+}
+
+.number-line-marker i {
+  display: block;
+  width: 5px;
+  height: 26px;
+  border-radius: 99px;
+  background: #426ea8;
+}
+
+.number-line-marker.mystery {
+  color: #fff;
+}
+
+.number-line-marker.mystery i {
+  height: 40px;
+  margin-top: -14px;
+  background: var(--coral);
+  box-shadow: 0 0 0 7px rgba(255, 122, 69, 0.16);
 }
 
 /* Staggered pop-in for scene items */
@@ -1259,6 +1535,13 @@ main {
   margin: 0 0 12px;
 }
 
+.report-intro {
+  margin: -4px 0 12px;
+  color: #7f5631;
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+
 .skill-report-grid {
   display: grid;
   gap: 14px;
@@ -1335,6 +1618,117 @@ main {
 .skill-detail {
   font-size: 0.88rem;
   color: #7f5631;
+}
+
+.math-skill-report-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.math-skill-chip {
+  position: relative;
+  display: grid;
+  gap: 4px;
+  min-height: 98px;
+  padding: 12px;
+  overflow: hidden;
+  border: 2px solid rgba(66, 110, 168, 0.14);
+  border-radius: 18px;
+  background: rgba(244, 249, 255, 0.82);
+}
+
+.math-skill-chip::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 5px;
+  background: linear-gradient(90deg, #70b7ff var(--skill-progress), rgba(112, 183, 255, 0.12) var(--skill-progress));
+  content: "";
+}
+
+.math-skill-chip-name {
+  font-size: 0.92rem;
+  font-weight: 900;
+}
+
+.math-skill-chip-status {
+  width: fit-content;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(66, 110, 168, 0.1);
+  color: #49627d;
+  font-size: 0.75rem;
+  font-weight: 900;
+}
+
+.math-skill-chip-status.secure {
+  background: rgba(124, 224, 163, 0.35);
+  color: #1e8a49;
+}
+
+.math-skill-chip-status.growing {
+  background: rgba(77, 182, 255, 0.22);
+  color: #1c6ea8;
+}
+
+.math-skill-chip-status.practice {
+  background: rgba(255, 122, 69, 0.2);
+  color: #b04a17;
+}
+
+.math-skill-chip-detail {
+  color: #7f5631;
+  font-size: 0.77rem;
+}
+
+.word-report-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+}
+
+.word-report-card {
+  display: grid;
+  gap: 3px;
+  min-height: 100px;
+  place-items: center;
+  padding: 10px 6px;
+  border: 2px solid rgba(70, 121, 79, 0.13);
+  border-radius: 18px;
+  background: rgba(241, 253, 239, 0.78);
+  color: #476c4d;
+  text-align: center;
+}
+
+.word-report-card.locked {
+  opacity: 0.52;
+  filter: grayscale(0.55);
+}
+
+.word-report-card strong {
+  font-size: 1.05rem;
+}
+
+.word-report-card > span:last-child {
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.word-report-emoji {
+  font-size: 1.45rem;
+}
+
+.word-report-card.reading {
+  border-color: rgba(41, 146, 78, 0.55);
+  background: linear-gradient(145deg, #dcffe7, #f7fff9);
+}
+
+.word-report-card.building,
+.word-report-card.read-once {
+  border-color: rgba(77, 182, 255, 0.42);
+  background: linear-gradient(145deg, #e4f5ff, #f8fdff);
 }
 
 .primary-button,
@@ -1659,6 +2053,7 @@ body.planet-theme-11 { background-image: linear-gradient(-45deg, #ece0ff, #e0d4f
   .two-choice-grid,
   .answer-choice-grid,
   .binary-choice-grid,
+  .word-choice-grid,
   .compare-scene,
   .story-scene {
     grid-template-columns: 1fr;

@@ -35,6 +35,14 @@ const modes = {
     label: "Write It",
     kicker: "Use your finger!",
   },
+  word: {
+    label: "Word Trail",
+    kicker: "Follow the trail words.",
+  },
+  compass: {
+    label: "Math Compass",
+    kicker: "Try a number challenge.",
+  },
 };
 
 const STARS_PER_PLANET = 10;
@@ -129,6 +137,59 @@ const MASCOTS = {
   },
 };
 
+const WORD_TRAIL_WORDS = [
+  { word: "map", emoji: "🗺️", camp: 1, sound: "/m/", pattern: "short a" },
+  { word: "dog", emoji: "🐕", camp: 1, sound: "/d/", pattern: "short o" },
+  { word: "dam", emoji: "🦫", camp: 1, sound: "/d/", pattern: "short a" },
+  { word: "hill", emoji: "⛰️", camp: 2, sound: "/h/", pattern: "short i" },
+  { word: "rock", emoji: "🪨", camp: 2, sound: "/r/", pattern: "short o" },
+  { word: "west", emoji: "🌇", camp: 2, sound: "/w/", pattern: "short e" },
+  { word: "cave", emoji: "🕳️", camp: 3, sound: "/k/", pattern: "magic e" },
+  { word: "pine", emoji: "🌲", camp: 3, sound: "/p/", pattern: "magic e" },
+  { word: "bike", emoji: "🚲", camp: 3, sound: "/b/", pattern: "magic e" },
+  { word: "park", emoji: "🌳", camp: 4, sound: "/p/", pattern: "r sound" },
+  { word: "river", emoji: "🌊", camp: 4, sound: "/r/", pattern: "two beats" },
+  { word: "road", emoji: "🛣️", camp: 4, sound: "/r/", pattern: "oa" },
+  { word: "loop", emoji: "➰", camp: 5, sound: "/l/", pattern: "oo" },
+  { word: "oak", emoji: "🌳", camp: 5, sound: "/ō/", pattern: "oa" },
+  { word: "trail", emoji: "🥾", camp: 5, sound: "/t/", pattern: "ai" },
+  { word: "brook", emoji: "💧", camp: 6, sound: "/b/", pattern: "oo" },
+  { word: "deer", emoji: "🦌", camp: 6, sound: "/d/", pattern: "ee" },
+  { word: "east", emoji: "🌅", camp: 6, sound: "/ē/", pattern: "ea" },
+  { word: "field", emoji: "🌾", camp: 7, sound: "/f/", pattern: "ie" },
+  { word: "pier", emoji: "🛟", camp: 7, sound: "/p/", pattern: "ie" },
+];
+
+const MATH_SKILLS = {
+  "one-to-one": { label: "Touch and count", shortLabel: "Counting" },
+  cardinality: { label: "How many?", shortLabel: "How many" },
+  subitize: { label: "Quick groups", shortLabel: "Quick groups" },
+  "numeral-match": { label: "Numerals and amounts", shortLabel: "Numerals" },
+  "count-on": { label: "Counting on", shortLabel: "Count on" },
+  "number-sequence": { label: "Number order", shortLabel: "Number order" },
+  "compare-groups": { label: "More, fewer, same", shortLabel: "Groups" },
+  "compare-numerals": { label: "Compare numerals", shortLabel: "Compare" },
+  "number-bonds": { label: "Parts make a whole", shortLabel: "Number pairs" },
+  "make-ten": { label: "Friends of ten", shortLabel: "Make 10" },
+  "add-subtract": { label: "Add and take away", shortLabel: "Stories" },
+  equals: { label: "Equals means the same", shortLabel: "Equals" },
+  "teen-numbers": { label: "Tens and ones", shortLabel: "Teen numbers" },
+  "number-line": { label: "Number line", shortLabel: "Number line" },
+  "skip-count": { label: "Skip counting", shortLabel: "Skip count" },
+  "numeral-writing": { label: "Writing numerals", shortLabel: "Writing" },
+};
+
+const COMPASS_SKILL_IDS = [
+  "subitize",
+  "numeral-match",
+  "count-on",
+  "number-line",
+  "number-bonds",
+  "equals",
+  "teen-numbers",
+  "skip-count",
+];
+
 const savedProgress = loadProgress();
 
 const countItems = [
@@ -207,6 +268,9 @@ const state = {
   nextRoundTimeoutId: null,
   currentRound: null,
   modeStats: savedProgress.modeStats,
+  wordProgress: savedProgress.wordProgress,
+  mathSkills: savedProgress.mathSkills,
+  compassIndex: savedProgress.compassIndex,
   audioContext: null,
   availableVoices: [],
 };
@@ -283,6 +347,9 @@ const elements = {
   saveSettings: document.querySelector("#save-settings"),
   resetProgress: document.querySelector("#reset-progress"),
   skillReportGrid: document.querySelector("#skill-report-grid"),
+  mathSkillReportGrid: document.querySelector("#math-skill-report-grid"),
+  wordReportGrid: document.querySelector("#word-report-grid"),
+  wordTrailReportNote: document.querySelector("#word-trail-report-note"),
 };
 
 init();
@@ -338,6 +405,59 @@ function createModeStats() {
   return stats;
 }
 
+function createWordProgress() {
+  return Object.fromEntries(
+    WORD_TRAIL_WORDS.map((word) => [
+      word.word,
+      { meets: 0, finds: 0, builds: 0, reads: 0, wins: 0, misses: 0 },
+    ])
+  );
+}
+
+function createMathSkillProgress() {
+  return Object.fromEntries(
+    Object.keys(MATH_SKILLS).map((skill) => [
+      skill,
+      { wins: 0, misses: 0, cleanWins: 0, streak: 0 },
+    ])
+  );
+}
+
+function getWordProgress(word) {
+  if (!state.wordProgress[word]) {
+    state.wordProgress[word] = { meets: 0, finds: 0, builds: 0, reads: 0, wins: 0, misses: 0 };
+  }
+  return state.wordProgress[word];
+}
+
+function getMathSkillProgress(skill) {
+  if (!state.mathSkills[skill]) {
+    state.mathSkills[skill] = { wins: 0, misses: 0, cleanWins: 0, streak: 0 };
+  }
+  return state.mathSkills[skill];
+}
+
+function getUnlockedWordTrailWords() {
+  const camps = [...new Set(WORD_TRAIL_WORDS.map((word) => word.camp))];
+  let unlockedThrough = 1;
+
+  for (let index = 1; index < camps.length; index += 1) {
+    const previousCamp = camps[index - 1];
+    const previousWords = WORD_TRAIL_WORDS.filter((word) => word.camp === previousCamp);
+    const previousCampIsReady = previousWords.every((word) => {
+      const progress = getWordProgress(word.word);
+      return progress.meets >= 1 && progress.finds >= 1;
+    });
+
+    if (!previousCampIsReady) {
+      break;
+    }
+    unlockedThrough = camps[index];
+  }
+
+  return WORD_TRAIL_WORDS.filter((word) => word.camp <= unlockedThrough);
+}
+
 function startMode(mode) {
   if (!modes[mode]) {
     return;
@@ -375,6 +495,14 @@ function nextRound() {
 }
 
 function generateRound(mode) {
+  if (mode === "word") {
+    return generateWordTrailRound();
+  }
+
+  if (mode === "compass") {
+    return generateCompassRound();
+  }
+
   if (mode === "count") {
     return generateCountRound();
   }
@@ -396,6 +524,347 @@ function generateRound(mode) {
   }
 
   return generateTeenRound();
+}
+
+function generateWordTrailRound() {
+  const word = chooseWordTrailWord();
+  const progress = getWordProgress(word.word);
+
+  if (progress.meets === 0) {
+    return generateWordMeetRound(word);
+  }
+
+  if (progress.finds === 0) {
+    return generateWordFindRound(word);
+  }
+
+  if (progress.builds === 0) {
+    return generateWordBuildRound(word);
+  }
+
+  return generateWordReadRound(word);
+}
+
+function chooseWordTrailWord() {
+  const unlocked = getUnlockedWordTrailWords();
+  const newWord = unlocked.find((word) => getWordProgress(word.word).meets === 0);
+
+  if (newWord) {
+    return newWord;
+  }
+
+  const stillLearning = unlocked.filter((word) => {
+    const progress = getWordProgress(word.word);
+    return progress.finds === 0 || progress.builds === 0 || progress.reads === 0;
+  });
+
+  if (stillLearning.length) {
+    return pickRandom(stillLearning);
+  }
+
+  return pickRandom(unlocked);
+}
+
+function generateWordMeetRound(word) {
+  return {
+    type: "scene-choice",
+    kicker: `Word Trail · Camp ${word.camp}`,
+    title: "Meet a new trail word!",
+    spokenPrompt: `Let's meet the word ${word.word}. ${word.word}.`,
+    subtitle: "Look, listen, and tap the word when you are ready.",
+    sceneClassName: "word-meet-scene",
+    sceneHtml: buildWordTrailSceneHtml(word, { showWord: true, showHint: true }),
+    layoutClass: "single-choice-grid",
+    word: word.word,
+    wordStep: "meets",
+    choices: [
+      createChoice({
+        correct: true,
+        className: "word-choice",
+        html: buildWordChoiceHtml(word.word, "tap the trail word"),
+      }),
+    ],
+    successMessage: `You met ${word.word}!`,
+  };
+}
+
+function generateWordFindRound(word) {
+  return {
+    type: "scene-choice",
+    kicker: `Word Trail · Camp ${word.camp}`,
+    title: `Find the word for this ${word.emoji}.`,
+    spokenPrompt: `Find the word ${word.word}.`,
+    subtitle: "Look at the letters, then tap the matching word.",
+    sceneClassName: "word-picture-scene",
+    sceneHtml: buildWordTrailSceneHtml(word),
+    layoutClass: "word-choice-grid",
+    word: word.word,
+    wordStep: "finds",
+    choices: buildWordChoices(word).map((choiceWord) =>
+      createChoice({
+        correct: choiceWord.word === word.word,
+        className: "word-choice",
+        html: buildWordChoiceHtml(choiceWord.word, "trail word"),
+      })
+    ),
+    successMessage: `Yes! ${word.word} matches the picture.`,
+    failureMessage: `This one says ${word.word}.`,
+  };
+}
+
+function generateWordBuildRound(word) {
+  return {
+    type: "word-build",
+    kicker: `Word Trail · Camp ${word.camp}`,
+    title: `Build the word ${word.word}.`,
+    spokenPrompt: `Build the word ${word.word}.`,
+    subtitle: "Tap the letters in the order they belong.",
+    word: word.word,
+    wordData: word,
+    wordStep: "builds",
+    successMessage: `You built ${word.word}!`,
+    failureMessage: `Let's look at ${word.word} together.`,
+  };
+}
+
+function generateWordReadRound(word) {
+  return {
+    type: "scene-choice",
+    kicker: `Word Trail · Camp ${word.camp}`,
+    title: "Which trail word did you hear?",
+    spokenPrompt: `Find the word ${word.word}.`,
+    subtitle: "Try it from memory. You can use Read It for a hint.",
+    sceneClassName: "word-read-scene",
+    sceneHtml: `<div class="word-read-badge">👀<span>Look at every letter.</span></div>`,
+    layoutClass: "word-choice-grid",
+    word: word.word,
+    wordStep: "reads",
+    choices: buildWordChoices(word).map((choiceWord) =>
+      createChoice({
+        correct: choiceWord.word === word.word,
+        className: "word-choice",
+        html: buildWordChoiceHtml(choiceWord.word, "trail word"),
+      })
+    ),
+    successMessage: `You read ${word.word}!`,
+    failureMessage: `The word was ${word.word}.`,
+  };
+}
+
+function buildWordChoices(targetWord) {
+  const choices = getUnlockedWordTrailWords().filter((word) => word.word !== targetWord.word);
+  const distractors = shuffleArray(choices).slice(0, 2);
+  return shuffleArray([targetWord, ...distractors]);
+}
+
+function generateCompassRound() {
+  const skill = getNextCompassSkill();
+  let round;
+
+  if (skill === "subitize") {
+    round = generateSubitizeRound();
+  } else if (skill === "numeral-match") {
+    round = generateNumeralMatchRound();
+  } else if (skill === "count-on") {
+    round = generateCompassSequenceRound();
+  } else if (skill === "number-line") {
+    round = generateNumberLineRound();
+  } else if (skill === "number-bonds") {
+    round = generateBondRound({ maxTarget: 10, answerCount: 4 });
+  } else if (skill === "equals") {
+    round = generateEqualsRound();
+  } else if (skill === "teen-numbers") {
+    round = generateTeenMatchRound({ minTeen: 11, maxTeen: 19, answerCount: 4 });
+  } else {
+    round = generateCompassSkipCountRound();
+  }
+
+  round.skill = skill;
+  round.kicker = `Math Compass · ${MATH_SKILLS[skill].shortLabel}`;
+  return round;
+}
+
+function getNextCompassSkill() {
+  const unseen = COMPASS_SKILL_IDS.filter((skill) => getMathSkillProgress(skill).wins + getMathSkillProgress(skill).misses === 0);
+  if (unseen.length) {
+    const skill = unseen[0];
+    state.compassIndex += 1;
+    return skill;
+  }
+
+  const sorted = [...COMPASS_SKILL_IDS].sort((first, second) => {
+    const firstProgress = getMathSkillProgress(first);
+    const secondProgress = getMathSkillProgress(second);
+    const firstAttempts = firstProgress.wins + firstProgress.misses;
+    const secondAttempts = secondProgress.wins + secondProgress.misses;
+    const firstAccuracy = firstAttempts ? firstProgress.wins / firstAttempts : 0;
+    const secondAccuracy = secondAttempts ? secondProgress.wins / secondAttempts : 0;
+    return firstAccuracy - secondAccuracy || firstAttempts - secondAttempts;
+  });
+
+  return sorted[0];
+}
+
+function generateSubitizeRound() {
+  const target = randomInt(2, 6);
+  const choices = buildNearbyChoices(target, 3, 7, { min: 1 });
+
+  return {
+    type: "scene-choice",
+    kicker: "Quick groups",
+    title: "How many stars do you see?",
+    subtitle: "Take a quick look. You do not have to count if you know it!",
+    sceneClassName: "subitize-scene",
+    sceneHtml: buildSubitizeSceneHtml(target),
+    layoutClass: "answer-choice-grid",
+    choices: choices.map((value) =>
+      createChoice({
+        correct: value === target,
+        html: buildNumberChoiceHtml(value, "stars"),
+      })
+    ),
+    successMessage: `Yes! You saw ${target} stars.`,
+    failureMessage: `There are ${target} stars.`,
+  };
+}
+
+function generateNumeralMatchRound() {
+  const target = randomInt(0, 20);
+  const choices = buildNearbyChoices(target, 4, 20, { min: 0 });
+
+  return {
+    type: "scene-choice",
+    kicker: "Numerals and amounts",
+    title: "Which number matches this group?",
+    subtitle: "Match the amount to its number.",
+    sceneClassName: "numeral-match-scene",
+    sceneHtml: buildQuantitySceneHtml(target),
+    layoutClass: "answer-choice-grid",
+    choices: choices.map((value) =>
+      createChoice({
+        correct: value === target,
+        html: buildNumberChoiceHtml(value, "number"),
+      })
+    ),
+    successMessage: `Yes! That group shows ${target}.`,
+    failureMessage: `That group shows ${target}.`,
+  };
+}
+
+function generateCompassSequenceRound() {
+  const kind = pickRandom(["after", "before", "between"]);
+  const start = randomInt(2, 18);
+  let title;
+  let correct;
+
+  if (kind === "before") {
+    correct = start - 1;
+    title = `What number comes before ${start}?`;
+  } else if (kind === "between") {
+    correct = start;
+    title = `What number comes between ${start - 1} and ${start + 1}?`;
+  } else {
+    correct = start + 1;
+    title = `What number comes after ${start}?`;
+  }
+
+  const choices = buildNearbyChoices(correct, 3, 20, { min: 0 });
+  return {
+    type: "choice",
+    kicker: "Number order",
+    title,
+    subtitle: "Imagine the number path.",
+    layoutClass: "answer-choice-grid",
+    choices: choices.map((value) =>
+      createChoice({
+        correct: value === correct,
+        html: buildNumberChoiceHtml(value, "number"),
+      })
+    ),
+    successMessage: `Yes! ${correct} is in that spot.`,
+    failureMessage: `The answer is ${correct}.`,
+  };
+}
+
+function generateNumberLineRound() {
+  const start = Math.random() < 0.5 ? 0 : 10;
+  const target = randomInt(start + 1, start + 9);
+  const choices = buildNearbyChoices(target, 3, start + 10, { min: start });
+
+  return {
+    type: "scene-choice",
+    kicker: "Number line",
+    title: "What number is hiding on the path?",
+    subtitle: "The numbers move by one as you walk along.",
+    sceneClassName: "number-line-scene",
+    sceneHtml: buildNumberLineHtml(start, target),
+    layoutClass: "answer-choice-grid",
+    choices: choices.map((value) =>
+      createChoice({
+        correct: value === target,
+        html: buildNumberChoiceHtml(value, "path number"),
+      })
+    ),
+    successMessage: `Yes! ${target} belongs there.`,
+    failureMessage: `${target} belongs in that spot.`,
+  };
+}
+
+function generateEqualsRound() {
+  const first = randomInt(1, 5);
+  const second = randomInt(1, 5);
+  const total = first + second;
+  const wrong = total + pickRandom([-2, -1, 1, 2]);
+  const choices = shuffleArray([
+    { value: total, correct: true },
+    { value: Math.max(0, wrong), correct: false },
+  ]);
+
+  return {
+    type: "choice",
+    kicker: "Equals means the same",
+    title: `What makes ${first} + ${second} = ? true?`,
+    subtitle: "The two sides of an equals sign have the same amount.",
+    layoutClass: "two-choice-grid",
+    choices: choices.map((choice) =>
+      createChoice({
+        correct: choice.correct,
+        className: "equation-choice",
+        html: `<span class="choice-equation">${first} + ${second} = ${choice.value}</span><span class="choice-label">equation</span>`,
+      })
+    ),
+    successMessage: `Yes! ${first} plus ${second} is ${total}.`,
+    failureMessage: `${first} plus ${second} is ${total}.`,
+  };
+}
+
+function generateCompassSkipCountRound() {
+  const step = pickRandom([2, 5, 10]);
+  const start = step === 10 ? randomInt(0, 6) * 10 : randomInt(0, 4) * step;
+  const correct = start + step;
+  const max = step === 10 ? 100 : 30;
+  const choices = buildNearbyChoices(correct, 3, max, {
+    min: 0,
+    offsets: [step, -step, step * 2, -step * 2, 1, -1],
+  });
+
+  return {
+    type: "scene-choice",
+    kicker: "Skip counting",
+    title: `What comes next when you count by ${step}s?`,
+    subtitle: "Say the rhythm as you jump along.",
+    sceneClassName: "sequence-scene-card",
+    sceneHtml: buildSequenceSceneHtml([start, start + step, correct, correct + step], 2),
+    layoutClass: "answer-choice-grid",
+    choices: choices.map((value) =>
+      createChoice({
+        correct: value === correct,
+        html: buildNumberChoiceHtml(value, "next number"),
+      })
+    ),
+    successMessage: `Yes! ${correct} comes next.`,
+    failureMessage: `When you count by ${step}s, ${correct} comes next.`,
+  };
 }
 
 function generateCountRound() {
@@ -649,6 +1118,7 @@ function generateChartHiddenRound(profile) {
 
   return {
     type: "scene-choice",
+    skill: "number-sequence",
     kicker: "Find the hiding number.",
     title: "What number is hiding?",
     subtitle: "The chart counts by ones, row by row.",
@@ -676,6 +1146,7 @@ function generateNextBigNumberRound(profile) {
 
   return {
     type: "choice",
+    skill: "number-sequence",
     kicker: "Keep on counting!",
     title: `What number comes after ${formatNumber(start)}?`,
     subtitle: crossDecade
@@ -702,6 +1173,7 @@ function generateMissingNumberRound(profile) {
 
   return {
     type: "scene-choice",
+    skill: "number-sequence",
     kicker: "Fix the number pattern.",
     title: "Which number is missing?",
     subtitle: "Say the numbers in order to find the gap.",
@@ -724,6 +1196,7 @@ function generateWriteRound() {
 
   return {
     type: "trace",
+    skill: "numeral-writing",
     kicker: modes.write.kicker,
     title: `Trace the number ${digit}!`,
     subtitle: "Color in the whole number with your finger.",
@@ -740,6 +1213,7 @@ function generateCountObjectsRound(profile) {
 
   return {
     type: "scene-choice",
+    skill: "cardinality",
     kicker: modes.count.kicker,
     title: `How many ${item.plural}?`,
     subtitle: getCountSubtitle(layout),
@@ -763,6 +1237,7 @@ function generateTapCountRound(profile) {
 
   return {
     type: "tap-count",
+    skill: "one-to-one",
     kicker: "Touch and count!",
     title: `Tap and count the ${item.plural}!`,
     subtitle: "Touch every one exactly one time.",
@@ -779,6 +1254,7 @@ function generateCountOnRound(profile) {
 
   return {
     type: "choice",
+    skill: "count-on",
     kicker: "Count on by one.",
     title: `What number comes after ${formatNumber(start)}?`,
     subtitle: "Try not to restart at 1.",
@@ -804,6 +1280,7 @@ function generateCountByTensRound() {
 
   return {
     type: "choice",
+    skill: "skip-count",
     kicker: "Count by tens.",
     title: `What comes after ${formatNumber(start)}?`,
     subtitle: "Ten more keeps the pattern going.",
@@ -832,6 +1309,7 @@ function generateCompareNumeralsRound(profile) {
 
   return {
     type: "choice",
+    skill: "compare-numerals",
     kicker: modes.compare.kicker,
     title: "Which number is greater?",
     subtitle: "The greater number means more.",
@@ -864,6 +1342,7 @@ function generateCompareObjectsRound(profile) {
 
   return {
     type: "choice",
+    skill: "compare-groups",
     kicker: "Which group has more?",
     title: `Tap the group with more ${item.plural}.`,
     subtitle: "You can match one object at a time in your head.",
@@ -893,6 +1372,7 @@ function generateSameAmountRound(profile) {
 
   return {
     type: "scene-choice",
+    skill: "compare-groups",
     kicker: "Equal means the same amount.",
     title: "Do both sides show the same number?",
     subtitle: "Count each side and compare.",
@@ -927,6 +1407,7 @@ function generateBondRound(profile) {
 
   return {
     type: "choice",
+    skill: "number-bonds",
     kicker: modes.pairs.kicker,
     title: `Which pair makes ${formatNumber(target)}?`,
     subtitle: "Different parts can make one whole number.",
@@ -950,6 +1431,7 @@ function generateMakeTenRound(profile) {
 
   return {
     type: "scene-choice",
+    skill: "make-ten",
     kicker: "Friends of 10.",
     title: `What makes 10 with ${formatNumber(first)}?`,
     subtitle: "Fill the whole ten frame.",
@@ -980,6 +1462,7 @@ function generateStoryRound(profile) {
 
     return {
       type: "scene-choice",
+      skill: "add-subtract",
       kicker: "Take away to subtract.",
       title: `${playerName} has ${total} ${pluralize(item, total)}. ${takenAway} go away. How many are left?`,
       subtitle: "Look at what stays.",
@@ -1004,6 +1487,7 @@ function generateStoryRound(profile) {
 
   return {
     type: "scene-choice",
+    skill: "add-subtract",
     kicker: "Put together to add.",
     title: `${playerName} has ${first} ${pluralize(item, first)} and gets ${second} more. How many now?`,
     subtitle: "Count both groups together.",
@@ -1028,6 +1512,7 @@ function generateTeenMatchRound(profile) {
 
   return {
     type: "choice",
+    skill: "teen-numbers",
     kicker: modes.teen.kicker,
     title: `How is ${formatNumber(target)} built?`,
     subtitle: "Teen numbers are 10 ones and some more ones.",
@@ -1050,6 +1535,7 @@ function generateTeenCountRound(profile) {
 
   return {
     type: "scene-choice",
+    skill: "teen-numbers",
     kicker: modes.teen.kicker,
     title: "Which teen number do you see?",
     subtitle: "Look for 1 full ten and extra ones.",
@@ -1074,6 +1560,7 @@ function generateTeenOnesRound(profile) {
 
   return {
     type: "scene-choice",
+    skill: "teen-numbers",
     kicker: "Count the extra ones.",
     title: `${target} is 10 and how many more ones?`,
     subtitle: "The teen number has one full ten first.",
@@ -1105,6 +1592,11 @@ function renderRound(round) {
 
   if (round.type === "trace") {
     renderTraceRound(round);
+    return;
+  }
+
+  if (round.type === "word-build") {
+    renderWordBuildRound(round);
     return;
   }
 
@@ -1221,6 +1713,121 @@ function renderTraceRound(round) {
   elements.choices.appendChild(scene);
 
   setupTracing(canvas, progressFill, clearButton, round);
+}
+
+function renderWordBuildRound(round) {
+  elements.choices.className = "choices scene-choice-layout";
+
+  const scene = document.createElement("div");
+  scene.className = "scene-card word-build-card";
+  scene.innerHTML = buildWordTrailSceneHtml(round.wordData, { showWord: true, showHint: true });
+
+  const builtWord = document.createElement("div");
+  builtWord.className = "word-build-answer";
+  const letters = round.word.split("");
+  const built = [];
+  let mistakes = 0;
+
+  const tiles = document.createElement("div");
+  tiles.className = "letter-tile-grid";
+  const tileButtons = shuffleArray(
+    letters.map((letter, index) => ({ letter, index }))
+  ).map(({ letter, index }) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "letter-tile";
+    button.textContent = letter;
+    button.dataset.letterIndex = String(index);
+    return button;
+  });
+
+  const controls = document.createElement("div");
+  controls.className = "word-build-controls";
+  const backButton = document.createElement("button");
+  backButton.type = "button";
+  backButton.className = "small-button";
+  backButton.textContent = "Back";
+  const resetButton = document.createElement("button");
+  resetButton.type = "button";
+  resetButton.className = "small-button";
+  resetButton.textContent = "Start Over";
+  controls.append(backButton, resetButton);
+
+  function updateBuiltWord() {
+    builtWord.innerHTML = letters
+      .map((_, index) => `<span class="word-build-slot">${built[index]?.letter || ""}</span>`)
+      .join("");
+  }
+
+  function syncTiles() {
+    const usedIndices = new Set(built.map((item) => item.index));
+    tileButtons.forEach((button) => {
+      button.disabled = usedIndices.has(Number(button.dataset.letterIndex));
+    });
+  }
+
+  function resetBuild(showMessage = false) {
+    built.length = 0;
+    updateBuiltWord();
+    syncTiles();
+    if (showMessage) {
+      showFeedback("retry", "Almost. Put the letters back in trail order.");
+    }
+  }
+
+  tileButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      if (!state.roundActive || button.disabled) {
+        return;
+      }
+
+      const item = {
+        letter: button.textContent,
+        index: Number(button.dataset.letterIndex),
+      };
+      built.push(item);
+      updateBuiltWord();
+      syncTiles();
+      playSoundEffect("tap");
+
+      if (built.length !== letters.length) {
+        return;
+      }
+
+      if (built.map((item) => item.letter).join("") === round.word) {
+        window.setTimeout(() => {
+          if (state.roundActive) {
+            handleCorrect(round.successMessage);
+          }
+        }, 320);
+        return;
+      }
+
+      mistakes += 1;
+      if (mistakes >= 2) {
+        handleIncorrect(round.failureMessage);
+        return;
+      }
+
+      window.setTimeout(() => resetBuild(true), 450);
+    });
+  });
+
+  backButton.addEventListener("click", () => {
+    if (!built.length || !state.roundActive) {
+      return;
+    }
+    built.pop();
+    updateBuiltWord();
+    syncTiles();
+  });
+
+  resetButton.addEventListener("click", () => resetBuild());
+
+  tileButtons.forEach((button) => tiles.appendChild(button));
+  scene.append(builtWord, tiles, controls);
+  elements.choices.appendChild(scene);
+  updateBuiltWord();
 }
 
 function setupTracing(canvas, progressFill, clearButton, round) {
@@ -1410,6 +2017,7 @@ function createChoice({ correct, html, className = "" }) {
 function handleCorrect(customMessage) {
   const usedRetry = state.retryUsed;
   recordModeResult(true, usedRetry);
+  recordRoundLearningResult(state.currentRound, true, usedRetry);
   endRound();
   const previousPlanet = currentPlanetIndex();
   state.score += 1;
@@ -1435,7 +2043,9 @@ function handleCorrect(customMessage) {
     elements.statsPanel.classList.remove("milestone");
     void elements.statsPanel.offsetWidth;
     elements.statsPanel.classList.add("milestone");
-    const msg = applyName(pickRandom(milestonePraise));
+    const msg = state.mode === "word"
+      ? "Five trail stars! You are a word explorer!"
+      : applyName(pickRandom(milestonePraise));
     showFeedback("success", msg);
     speakCustom(msg);
     queueNextRound(1800);
@@ -1443,8 +2053,13 @@ function handleCorrect(customMessage) {
     setMascotState("happy", 1000);
     playSoundEffect(pickRandom(["success", "success2", "success3"]));
     launchConfetti(28);
-    showFeedback("success", applyName(customMessage || pickRandom(praiseLines)));
-    speakPraise();
+    const message = applyName(customMessage || pickRandom(praiseLines));
+    showFeedback("success", message);
+    if (state.mode === "word") {
+      speakCustom(message);
+    } else {
+      speakPraise();
+    }
     queueNextRound(1000);
   }
 }
@@ -1473,6 +2088,7 @@ function showLaunchCelebration(planetIndex) {
 
 function handleIncorrect(message) {
   recordModeResult(false);
+  recordRoundLearningResult(state.currentRound, false);
   endRound();
   state.streak = 0;
   persistProgress();
@@ -1598,48 +2214,130 @@ function renderSkillReport() {
   const grid = elements.skillReportGrid;
   grid.innerHTML = "";
 
-  Object.entries(modes).forEach(([modeKey, mode]) => {
-    const stats = state.modeStats[modeKey];
-    const attempts = stats.wins + stats.misses;
-    const accuracy = attempts ? stats.wins / attempts : 0;
+  Object.entries(modes)
+    .filter(([modeKey]) => modeKey !== "word" && modeKey !== "compass")
+    .forEach(([modeKey, mode]) => {
+      const stats = state.modeStats[modeKey];
+      const attempts = stats.wins + stats.misses;
+      const accuracy = attempts ? stats.wins / attempts : 0;
 
-    let status = "Just starting";
-    let statusClass = "starting";
-    if (attempts >= 5) {
-      if (accuracy >= 0.85) {
-        status = "Strong";
-        statusClass = "strong";
-      } else if (accuracy >= 0.6) {
-        status = "Practicing";
-        statusClass = "practicing";
-      } else {
-        status = "Needs help";
-        statusClass = "helping";
+      let status = "Just starting";
+      let statusClass = "starting";
+      if (attempts >= 5) {
+        if (accuracy >= 0.85) {
+          status = "Strong";
+          statusClass = "strong";
+        } else if (accuracy >= 0.6) {
+          status = "Practicing";
+          statusClass = "practicing";
+        } else {
+          status = "Needs help";
+          statusClass = "helping";
+        }
       }
-    }
 
-    // Write It rounds cannot be answered wrong, so a difficulty tier
-    // would be meaningless there.
-    const tierText =
-      modeKey === "write" ? "" : ` · difficulty ${getModeTier(modeKey)} of 3`;
-    const detail = attempts
-      ? `${stats.wins} correct · ${stats.misses} missed${tierText}`
-      : "No rounds played yet";
+      const tierText = modeKey === "write" ? "" : ` · difficulty ${getModeTier(modeKey)} of 3`;
+      const detail = attempts
+        ? `${stats.wins} correct · ${stats.misses} missed${tierText}`
+        : "No rounds played yet";
 
+      const row = document.createElement("div");
+      row.className = "skill-row";
+      row.innerHTML = `
+        <div class="skill-row-head">
+          <span class="skill-name">${mode.label}</span>
+          <span class="skill-status ${statusClass}">${status}</span>
+        </div>
+        <div class="skill-bar">
+          <div class="skill-bar-fill ${statusClass}" style="width: ${Math.round(accuracy * 100)}%"></div>
+        </div>
+        <span class="skill-detail">${detail}</span>
+      `;
+      grid.appendChild(row);
+    });
+
+  renderMathSkillReport();
+  renderWordTrailReport();
+}
+
+function renderMathSkillReport() {
+  const grid = elements.mathSkillReportGrid;
+  grid.innerHTML = "";
+
+  Object.entries(MATH_SKILLS).forEach(([skillId, skill]) => {
+    const progress = getMathSkillProgress(skillId);
+    const attempts = progress.wins + progress.misses;
+    const accuracy = attempts ? progress.wins / attempts : 0;
+    const status = getMathSkillStatus(progress);
     const row = document.createElement("div");
-    row.className = "skill-row";
+    row.className = "math-skill-chip";
     row.innerHTML = `
-      <div class="skill-row-head">
-        <span class="skill-name">${mode.label}</span>
-        <span class="skill-status ${statusClass}">${status}</span>
-      </div>
-      <div class="skill-bar">
-        <div class="skill-bar-fill ${statusClass}" style="width: ${Math.round(accuracy * 100)}%"></div>
-      </div>
-      <span class="skill-detail">${detail}</span>
+      <span class="math-skill-chip-name">${skill.shortLabel}</span>
+      <span class="math-skill-chip-status ${status.className}">${status.label}</span>
+      <span class="math-skill-chip-detail">${attempts ? `${progress.wins}/${attempts}` : "not tried"}</span>
     `;
+    row.style.setProperty("--skill-progress", `${Math.round(accuracy * 100)}%`);
     grid.appendChild(row);
   });
+}
+
+function getMathSkillStatus(progress) {
+  const attempts = progress.wins + progress.misses;
+  const accuracy = attempts ? progress.wins / attempts : 0;
+
+  if (progress.cleanWins >= 4 && accuracy >= 0.8) {
+    return { label: "Secure", className: "secure" };
+  }
+  if (progress.wins >= 2 && accuracy >= 0.6) {
+    return { label: "Growing", className: "growing" };
+  }
+  if (attempts >= 3 && accuracy < 0.6) {
+    return { label: "Practice", className: "practice" };
+  }
+  return { label: "New", className: "new" };
+}
+
+function renderWordTrailReport() {
+  const grid = elements.wordReportGrid;
+  const unlocked = new Set(getUnlockedWordTrailWords().map((word) => word.word));
+  grid.innerHTML = "";
+
+  WORD_TRAIL_WORDS.forEach((word) => {
+    const progress = getWordProgress(word.word);
+    const status = getWordTrailStatus(progress);
+    const card = document.createElement("div");
+    card.className = ["word-report-card", status.className, unlocked.has(word.word) ? "unlocked" : "locked"]
+      .filter(Boolean)
+      .join(" ");
+    card.innerHTML = `
+      <span class="word-report-emoji">${unlocked.has(word.word) ? word.emoji : "🔒"}</span>
+      <strong>${word.word}</strong>
+      <span>${status.label}</span>
+    `;
+    grid.appendChild(card);
+  });
+
+  const unlockedCamps = new Set(getUnlockedWordTrailWords().map((word) => word.camp)).size;
+  elements.wordTrailReportNote.textContent = `Camp ${unlockedCamps} is open. Words move from meet → find → build → read.`;
+}
+
+function getWordTrailStatus(progress) {
+  if (progress.reads >= 2) {
+    return { label: "Reading", className: "reading" };
+  }
+  if (progress.reads >= 1) {
+    return { label: "Read once", className: "read-once" };
+  }
+  if (progress.builds >= 1) {
+    return { label: "Building", className: "building" };
+  }
+  if (progress.finds >= 1) {
+    return { label: "Finding", className: "finding" };
+  }
+  if (progress.meets >= 1) {
+    return { label: "Met", className: "met" };
+  }
+  return { label: "Next", className: "next" };
 }
 
 function getModeTier(modeKey) {
@@ -1704,7 +2402,7 @@ function refreshHeader() {
   const name = state.settings.playerName || defaultSettings.playerName;
   document.title = `${name} Number Quest`;
   elements.appTitle.textContent = `${name} Number Quest`;
-  elements.heroMessage.textContent = `${name} can practice kindergarten number skills and help the rocket blast off.`;
+  elements.heroMessage.textContent = `${name} can practice number skills, follow the Word Trail, and help the rocket blast off.`;
 }
 
 function updateStats(animate = false) {
@@ -1742,6 +2440,9 @@ function resetProgress() {
   state.mode = null;
   state.currentRound = null;
   state.modeStats = createModeStats();
+  state.wordProgress = createWordProgress();
+  state.mathSkills = createMathSkillProgress();
+  state.compassIndex = 0;
   state.stickers = {};
   updateReadPromptButton();
   persistProgress();
@@ -1773,6 +2474,34 @@ function recordModeResult(didWin, usedRetry = false) {
 
   stats.misses += 1;
   stats.streak = 0;
+}
+
+function recordRoundLearningResult(round, didWin, usedRetry = false) {
+  if (!round) {
+    return;
+  }
+
+  if (round.skill && MATH_SKILLS[round.skill]) {
+    const progress = getMathSkillProgress(round.skill);
+    if (didWin) {
+      progress.wins += 1;
+      progress.cleanWins += usedRetry ? 0 : 1;
+      progress.streak = usedRetry ? 0 : progress.streak + 1;
+    } else {
+      progress.misses += 1;
+      progress.streak = 0;
+    }
+  }
+
+  if (round.word && round.wordStep) {
+    const progress = getWordProgress(round.word);
+    if (didWin) {
+      progress.wins += 1;
+      progress[round.wordStep] = (Number(progress[round.wordStep]) || 0) + 1;
+    } else {
+      progress.misses += 1;
+    }
+  }
 }
 
 function loadSettings() {
@@ -1820,6 +2549,9 @@ function loadProgress() {
       stars: 0,
       stickers: {},
       modeStats: createModeStats(),
+      wordProgress: createWordProgress(),
+      mathSkills: createMathSkillProgress(),
+      compassIndex: 0,
     };
 
     if (!raw) {
@@ -1852,12 +2584,45 @@ function loadProgress() {
       });
     }
 
+    const wordProgress = createWordProgress();
+    WORD_TRAIL_WORDS.forEach((word) => {
+      const saved = parsed.wordProgress?.[word.word];
+      if (!saved) {
+        return;
+      }
+      wordProgress[word.word] = {
+        meets: Math.max(0, Number(saved.meets) || 0),
+        finds: Math.max(0, Number(saved.finds) || 0),
+        builds: Math.max(0, Number(saved.builds) || 0),
+        reads: Math.max(0, Number(saved.reads) || 0),
+        wins: Math.max(0, Number(saved.wins) || 0),
+        misses: Math.max(0, Number(saved.misses) || 0),
+      };
+    });
+
+    const mathSkills = createMathSkillProgress();
+    Object.keys(mathSkills).forEach((skill) => {
+      const saved = parsed.mathSkills?.[skill];
+      if (!saved) {
+        return;
+      }
+      mathSkills[skill] = {
+        wins: Math.max(0, Number(saved.wins) || 0),
+        misses: Math.max(0, Number(saved.misses) || 0),
+        cleanWins: Math.max(0, Number(saved.cleanWins) || 0),
+        streak: Math.max(0, Number(saved.streak) || 0),
+      };
+    });
+
     return {
       score: Number(parsed.score) || 0,
       streak: Number(parsed.streak) || 0,
       stars: Number(parsed.stars) || 0,
       stickers,
       modeStats: nextModeStats,
+      wordProgress,
+      mathSkills,
+      compassIndex: Math.max(0, Math.floor(Number(parsed.compassIndex) || 0)),
     };
   } catch {
     return {
@@ -1866,6 +2631,9 @@ function loadProgress() {
       stars: 0,
       stickers: {},
       modeStats: createModeStats(),
+      wordProgress: createWordProgress(),
+      mathSkills: createMathSkillProgress(),
+      compassIndex: 0,
     };
   }
 }
@@ -1880,6 +2648,9 @@ function persistProgress() {
         stars: state.stars,
         stickers: state.stickers,
         modeStats: state.modeStats,
+        wordProgress: state.wordProgress,
+        mathSkills: state.mathSkills,
+        compassIndex: state.compassIndex,
       })
     );
   } catch {
@@ -1915,7 +2686,8 @@ function readCurrentPrompt() {
     return;
   }
 
-  const utterance = new SpeechSynthesisUtterance(state.currentRound.title);
+  const text = state.currentRound.spokenPrompt || state.currentRound.title;
+  const utterance = new SpeechSynthesisUtterance(text);
   speakUtterance(utterance, "prompt");
 }
 
@@ -2287,7 +3059,8 @@ function autoReadPrompt() {
       return;
     }
 
-    const utterance = new SpeechSynthesisUtterance(state.currentRound.title);
+    const text = state.currentRound.spokenPrompt || state.currentRound.title;
+    const utterance = new SpeechSynthesisUtterance(text);
     speakUtterance(utterance, "prompt");
   }, 350);
 }
@@ -2581,6 +3354,53 @@ function buildWordChoiceHtml(word, label) {
     <span class="choice-word">${word}</span>
     <span class="choice-label">${label}</span>
   `;
+}
+
+function buildWordTrailSceneHtml(word, { showWord = false, showHint = false } = {}) {
+  return `
+    <div class="word-trail-scene">
+      <span class="word-trail-emoji" aria-hidden="true">${word.emoji}</span>
+      ${showWord ? `<strong class="trail-word-display">${word.word}</strong>` : ""}
+      ${showHint ? `<span class="trail-word-hint">Starts with ${word.word[0].toUpperCase()} (${word.sound}) · ${word.pattern}</span>` : ""}
+    </div>
+  `;
+}
+
+function buildSubitizeSceneHtml(target) {
+  const arrangements = {
+    2: ["25% 50%", "75% 50%"],
+    3: ["50% 22%", "27% 72%", "73% 72%"],
+    4: ["25% 25%", "75% 25%", "25% 75%", "75% 75%"],
+    5: ["50% 18%", "22% 42%", "78% 42%", "28% 78%", "72% 78%"],
+    6: ["24% 22%", "76% 22%", "24% 50%", "76% 50%", "24% 78%", "76% 78%"],
+  };
+  const stars = (arrangements[target] || []).map(
+    (position) => `<span class="subitize-star" style="left:${position.split(" ")[0]};top:${position.split(" ")[1]}">⭐</span>`
+  );
+  return `<div class="subitize-board">${stars.join("")}</div>`;
+}
+
+function buildQuantitySceneHtml(target) {
+  if (target === 0) {
+    return `<div class="quantity-scene zero-scene"><span>🌌</span><strong>No stars yet!</strong></div>`;
+  }
+
+  return `
+    <div class="quantity-scene">
+      <div class="quantity-grid">
+        ${buildEmojiRun("⭐", target, "quantity-star")}
+      </div>
+    </div>
+  `;
+}
+
+function buildNumberLineHtml(start, target) {
+  const markers = Array.from({ length: 11 }, (_, index) => {
+    const value = start + index;
+    const label = value === target ? "?" : value;
+    return `<span class="number-line-marker${value === target ? " mystery" : ""}"><i></i>${label}</span>`;
+  });
+  return `<div class="number-line">${markers.join("")}</div>`;
 }
 
 function buildEquationChoiceHtml(first, second) {

@@ -1,6 +1,6 @@
 # Luca Number Quest
 
-A tiny static web app for young kids who love numbers. It is designed to run well on GitHub Pages and be saved to an iPad home screen like an app.
+A tiny static web app for young kids who love numbers and are beginning to read. It is designed to run well on GitHub Pages and be saved to an iPad home screen like an app.
 
 This repo already maps to the GitHub Pages project `luca-number-quest`.
 
@@ -18,7 +18,10 @@ The current version is tuned to Connecticut kindergarten number goals.
 - A sticker book: each planet landing awards a collectible sticker (34 to find)
 - A tappable buddy mascot (robot, dino, or cat) that reacts to answers
 - One gentle retry before the answer is revealed on a wrong tap
-- A parent Skill Report in settings: per-skill accuracy, status, and current difficulty tier
+- Word Trail: Luca's twenty summer trail words, taught through meet, find, build, and read activities
+- Sound hints that connect trail words to their first letter sounds without blocking word practice
+- Math Compass: a gentle skill map that adapts number challenges from individual skills, not just a broad difficulty tier
+- A parent Learning Report with the number map and word-by-word Word Trail progress
 - Parent settings for child name, round length, voice praise, and silly sounds
 - Optional timed rounds, with the timer off by default for calmer practice
 - Saved progress on the device so score and skill progress survive reloads
